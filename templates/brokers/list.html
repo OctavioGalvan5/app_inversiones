@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Brokers{% endblock %}
+{% block header_title %}Brokers{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2>Listado de Brokers</h2>
+        <p class="text-secondary">Gestiona y califica los brokers registrados</p>
+    </div>
+    <a href="{{ url_for('broker_new') }}" class="btn btn-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        Nuevo Broker
+    </a>
+</div>
+
+{% if brokers %}
+<div class="grid-3">
+    {% for broker in brokers %}
+    <div class="broker-card">
+        <div class="broker-header">
+            <div class="broker-logo">{{ broker.name[0] }}</div>
+            <div class="broker-info">
+                <h3><a href="{{ url_for('broker_detail', broker_id=broker.id) }}">{{ broker.name }}</a></h3>
+                <div class="star-rating-display">
+                    <span class="stars">
+                        {% for i in range(5) %}
+                        {% if i < broker.average_rating|int %}★{% else %}☆{% endif %} {% endfor %} </span>
+                            <span class="count">({{ broker.rating_count }})</span>
+                </div>
+            </div>
+        </div>
+
+        {% if broker.description %}
+        <p class="text-secondary" style="font-size: 0.875rem;">{{ broker.description[:100] }}{% if
+            broker.description|length > 100 %}...{% endif %}</p>
+        {% endif %}
+
+        <div class="flex items-center justify-between" style="margin-top: auto;">
+            <span class="badge badge-primary">
+                Comisión: {{ broker.commission_rate }}%
+            </span>
+            <a href="{{ url_for('broker_detail', broker_id=broker.id) }}" class="btn btn-sm btn-ghost">
+                Ver detalle →
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="1.5">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            <h3>Sin brokers registrados</h3>
+            <p>Comienza agregando tu primer broker</p>
+            <a href="{{ url_for('broker_new') }}" class="btn btn-primary">Agregar Broker</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Historial - {{ stock.symbol }}{% endblock %}
+{% block header_title %}Historial de {{ stock.symbol }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <a href="{{ url_for('stocks_list') }}" class="text-secondary" style="font-size: 0.875rem;">← Volver a Acciones y
+            Bonos</a>
+        <h2 style="margin-top: 0.5rem;">{{ stock.symbol }} - {{ stock.name or 'Sin nombre' }}</h2>
+        <p class="text-secondary">Historial de cotizaciones</p>
+    </div>
+</div>
+
+<!-- Current Price Card -->
+<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="stat-card success">
+        <div class="stat-content">
+            <div class="stat-label">Precio Actual</div>
+            <div class="stat-value">{{ stock.currency }} {{ "{:,.2f}".format(stock.current_price or 0) }}</div>
+        </div>
+    </div>
+
+    <div class="stat-card info">
+        <div class="stat-content">
+            <div class="stat-label">Tipo</div>
+            <div class="stat-value" style="font-size: 1.25rem;">{{ stock.stock_type|title }}</div>
+        </div>
+    </div>
+
+    <div class="stat-card warning">
+        <div class="stat-content">
+            <div class="stat-label">Ultima Actualizacion</div>
+            <div class="stat-value" style="font-size: 1rem;">
+                {{ stock.last_updated.strftime('%d/%m/%Y %H:%M') if stock.last_updated else 'Nunca' }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Price Chart -->
+<div class="card mt-3">
+    <div class="card-header">
+        <h3 class="card-title">Evolucion del Precio</h3>
+    </div>
+    <div class="card-body">
+        <canvas id="stockChart" height="300"></canvas>
+    </div>
+</div>
+
+<!-- History Table -->
+<div class="card mt-3">
+    <div class="card-header">
+        <h3 class="card-title">Historial de Precios</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        {% if history %}
+        <div class="table-container" style="box-shadow: none;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Precio</th>
+                        <th>Volumen</th>
+                        <th>Variacion</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for h in history %}
+                    <tr>
+                        <td>{{ h.date.strftime('%d/%m/%Y') }}</td>
+                        <td><strong>{{ stock.currency }} {{ "{:,.2f}".format(h.price) }}</strong></td>
+                        <td>{{ "{:,}".format(h.volume) if h.volume else '-' }}</td>
+                        <td>
+                            {% if loop.index < history|length %} {% set prev_price=history[loop.index].price %} {% if
+                                prev_price> 0 %}
+                                {% set change = ((h.price - prev_price) / prev_price * 100) %}
+                                {% if change >= 0 %}
+                                <span class="text-success">+{{ "%.2f"|format(change) }}%</span>
+                                {% else %}
+                                <span class="text-danger">{{ "%.2f"|format(change) }}%</span>
+                                {% endif %}
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding: 2rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="1.5">
+                <polyline points="22,7 13.5,15.5 8.5,10.5 2,17"></polyline>
+                <polyline points="16,7 22,7 22,13"></polyline>
+            </svg>
+            <h3>Sin historial</h3>
+            <p>Aun no hay datos de precios registrados para este activo</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    {% if history %}
+    const ctx = document.getElementById('stockChart').getContext('2d');
+
+    // Reverse to show oldest first
+    const dates = {{ history| map(attribute = 'date') | map('strftime', '%d/%m') | list | reverse | tojson }};
+    const prices = {{ history| map(attribute = 'price') | list | reverse | tojson }};
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [{
+                label: '{{ stock.symbol }}',
+                data: prices,
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: false }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+    {% endif %}
+</script>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Editar' if broker else 'Nuevo' }} Broker{% endblock %}
+{% block header_title %}{{ 'Editar' if broker else 'Nuevo' }} Broker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2>{{ 'Editar Broker' if broker else 'Nuevo Broker' }}</h2>
+        <p class="text-secondary">{{ 'Modifica la información del broker' if broker else 'Completa los datos del nuevo
+            broker' }}</p>
+    </div>
+    <a href="{{ url_for('brokers_list') }}" class="btn btn-secondary">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12,19 5,12 12,5"></polyline>
+        </svg>
+        Volver
+    </a>
+</div>
+
+<div class="card" style="max-width: 800px;">
+    <div class="card-body">
+        <form method="POST"
+            action="{{ url_for('broker_edit', broker_id=broker.id) if broker else url_for('broker_new') }}">
+            <div class="form-group">
+                <label class="form-label" for="name">Nombre del Broker *</label>
+                <input type="text" class="form-control" id="name" name="name"
+                    value="{{ broker.name if broker else '' }}" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="description">Descripción</label>
+                <textarea class="form-control" id="description" name="description"
+                    placeholder="Breve descripción del broker...">{{ broker.description if broker else '' }}</textarea>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="website">Sitio Web</label>
+                    <input type="url" class="form-control" id="website" name="website"
+                        value="{{ broker.website if broker else '' }}" placeholder="https://...">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="email">Email de Contacto</label>
+                    <input type="email" class="form-control" id="email" name="email"
+                        value="{{ broker.email if broker else '' }}" placeholder="contacto@broker.com">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="phone">Teléfono</label>
+                    <input type="text" class="form-control" id="phone" name="phone"
+                        value="{{ broker.phone if broker else '' }}" placeholder="+54 387 ...">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="commission_rate">Comisión (%)</label>
+                    <input type="number" step="0.01" min="0" max="100" class="form-control" id="commission_rate"
+                        name="commission_rate" value="{{ broker.commission_rate if broker else '0' }}">
+                </div>
+            </div>
+
+            <div class="flex gap-2 mt-3">
+                <button type="submit" class="btn btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17,21 17,13 7,13 7,21"></polyline>
+                        <polyline points="7,3 7,8 15,8"></polyline>
+                    </svg>
+                    {{ 'Guardar Cambios' if broker else 'Crear Broker' }}
+                </button>
+                <a href="{{ url_for('brokers_list') }}" class="btn btn-secondary">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

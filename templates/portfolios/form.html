@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Editar' if portfolio else 'Nueva' }} Cartera{% endblock %}
+{% block header_title %}{{ 'Editar' if portfolio else 'Nueva' }} Cartera{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2>{{ 'Editar Cartera' if portfolio else 'Nueva Cartera' }}</h2>
+        <p class="text-secondary">{{ 'Modifica los datos de la cartera' if portfolio else 'Crea una nueva cartera de
+            inversiones' }}</p>
+    </div>
+    <a href="{{ url_for('portfolios_list') }}" class="btn btn-secondary">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12,19 5,12 12,5"></polyline>
+        </svg>
+        Volver
+    </a>
+</div>
+
+<div class="card" style="max-width: 600px;">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('portfolio_new') }}">
+            <div class="form-group">
+                <label class="form-label" for="name">Nombre de la Cartera *</label>
+                <input type="text" class="form-control" id="name" name="name"
+                    value="{{ portfolio.name if portfolio else '' }}" placeholder="Ej: Cartera Conservadora USD"
+                    required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="broker_id">Broker Asociado *</label>
+                <select class="form-control" id="broker_id" name="broker_id" required>
+                    <option value="">Seleccionar broker...</option>
+                    {% for broker in brokers %}
+                    <option value="{{ broker.id }}" {% if portfolio and portfolio.broker_id==broker.id %}selected{%
+                        endif %}>
+                        {{ broker.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <span class="form-hint">La cartera estará asociada a este broker</span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="description">Descripción</label>
+                <textarea class="form-control" id="description" name="description"
+                    placeholder="Descripción de la estrategia de la cartera...">{{ portfolio.description if portfolio else '' }}</textarea>
+            </div>
+
+            <div class="flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17,21 17,13 7,13 7,21"></polyline>
+                        <polyline points="7,3 7,8 15,8"></polyline>
+                    </svg>
+                    Crear Cartera
+                </button>
+                <a href="{{ url_for('portfolios_list') }}" class="btn btn-secondary">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

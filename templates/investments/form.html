@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Editar' if investment else 'Nueva' }} Inversión{% endblock %}
+{% block header_title %}{{ 'Editar' if investment else 'Nueva' }} Inversión{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2>{{ 'Editar Inversión' if investment else 'Nueva Inversión' }}</h2>
+        <p class="text-secondary">{{ 'Modifica los datos de la inversión' if investment else 'Registra una nueva
+            inversión' }}</p>
+    </div>
+    <a href="{{ url_for('investments_list') }}" class="btn btn-secondary">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12,19 5,12 12,5"></polyline>
+        </svg>
+        Volver
+    </a>
+</div>
+
+<div class="card" style="max-width: 900px;">
+    <div class="card-body">
+        <form method="POST"
+            action="{{ url_for('investment_edit', investment_id=investment.id) if investment else url_for('investment_new') }}">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="name">Nombre de la Inversión *</label>
+                    <input type="text" class="form-control" id="name" name="name"
+                        value="{{ investment.name if investment else '' }}" placeholder="Ej: Plazo Fijo Diciembre 2024"
+                        required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="investment_type">Tipo de Inversión *</label>
+                    <select class="form-control" id="investment_type" name="investment_type" required
+                        onchange="toggleInterestFields()">
+                        <option value="">Seleccionar...</option>
+                        <option value="plazo_fijo" {% if investment and investment.investment_type=='plazo_fijo'
+                            %}selected{% endif %}>Plazo Fijo</option>
+                        <option value="bono" {% if investment and investment.investment_type=='bono' %}selected{% endif
+                            %}>Bono</option>
+                        <option value="accion" {% if investment and investment.investment_type=='accion' %}selected{%
+                            endif %}>Acción</option>
+                        <option value="fci" {% if investment and investment.investment_type=='fci' %}selected{% endif
+                            %}>FCI</option>
+                        <option value="crypto" {% if investment and investment.investment_type=='crypto' %}selected{%
+                            endif %}>Criptomoneda</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="amount">Monto *</label>
+                    <input type="number" step="0.01" min="0" class="form-control" id="amount" name="amount"
+                        value="{{ investment.amount if investment else '' }}" placeholder="100000" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="currency">Moneda</label>
+                    <select class="form-control" id="currency" name="currency">
+                        <option value="ARS" {% if not investment or investment.currency=='ARS' %}selected{% endif %}>ARS
+                            (Peso Argentino)</option>
+                        <option value="USD" {% if investment and investment.currency=='USD' %}selected{% endif %}>USD
+                            (Dólar)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row" id="interest-fields">
+                <div class="form-group">
+                    <label class="form-label" for="interest_rate">Tasa de Interés Anual (%)</label>
+                    <input type="number" step="0.01" min="0" max="999" class="form-control" id="interest_rate"
+                        name="interest_rate" value="{{ investment.interest_rate if investment else '' }}"
+                        placeholder="Ej: 120.5">
+                    <span class="form-hint">Para plazos fijos, ingresar la TNA</span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="broker_id">Broker</label>
+                    <select class="form-control" id="broker_id" name="broker_id">
+                        <option value="">Sin broker asignado</option>
+                        {% for broker in brokers %}
+                        <option value="{{ broker.id }}" {% if investment and investment.broker_id==broker.id
+                            %}selected{% endif %}>
+                            {{ broker.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="start_date">Fecha de Inicio</label>
+                    <input type="date" class="form-control" id="start_date" name="start_date"
+                        value="{{ investment.start_date.strftime('%Y-%m-%d') if investment and investment.start_date else '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="end_date">Fecha de Vencimiento</label>
+                    <input type="date" class="form-control" id="end_date" name="end_date"
+                        value="{{ investment.end_date.strftime('%Y-%m-%d') if investment and investment.end_date else '' }}">
+                </div>
+            </div>
+
+            {% if investment %}
+            <div class="form-group">
+                <label class="form-label" for="status">Estado</label>
+                <select class="form-control" id="status" name="status">
+                    <option value="active" {% if investment.status=='active' %}selected{% endif %}>Activa</option>
+                    <option value="completed" {% if investment.status=='completed' %}selected{% endif %}>Completada
+                    </option>
+                    <option value="cancelled" {% if investment.status=='cancelled' %}selected{% endif %}>Cancelada
+                    </option>
+                </select>
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label class="form-label" for="notes">Notas</label>
+                <textarea class="form-control" id="notes" name="notes"
+                    placeholder="Notas adicionales sobre esta inversión...">{{ investment.notes if investment else '' }}</textarea>
+            </div>
+
+            <!-- Preview Calculation -->
+            <div class="card mb-3" id="calculation-preview" style="background: var(--bg-secondary); display: none;">
+                <div class="card-body">
+                    <h4 class="mb-2">📊 Proyección de Rendimiento</h4>
+                    <div class="grid-3" style="gap: 1rem;">
+                        <div>
+                            <strong class="text-muted" style="font-size: 0.75rem;">CAPITAL</strong>
+                            <p class="font-bold" id="preview-capital">-</p>
+                        </div>
+                        <div>
+                            <strong class="text-muted" style="font-size: 0.75rem;">INTERÉS ESTIMADO</strong>
+                            <p class="font-bold text-success" id="preview-interest">-</p>
+                        </div>
+                        <div>
+                            <strong class="text-muted" style="font-size: 0.75rem;">TOTAL AL VENCIMIENTO</strong>
+                            <p class="font-bold" id="preview-total">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17,21 17,13 7,13 7,21"></polyline>
+                        <polyline points="7,3 7,8 15,8"></polyline>
+                    </svg>
+                    {{ 'Guardar Cambios' if investment else 'Crear Inversión' }}
+                </button>
+                <a href="{{ url_for('investments_list') }}" class="btn btn-secondary">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleInterestFields() {
+        const type = document.getElementById('investment_type').value;
+        const interestFields = document.getElementById('interest-fields');
+        const preview = document.getElementById('calculation-preview');
+
+        if (type === 'plazo_fijo') {
+            preview.style.display = 'block';
+            calculatePreview();
+        } else {
+            preview.style.display = 'none';
+        }
+    }
+
+    function calculatePreview() {
+        const amount = parseFloat(document.getElementById('amount').value) || 0;
+        const rate = parseFloat(document.getElementById('interest_rate').value) || 0;
+        const startDate = new Date(document.getElementById('start_date').value);
+        const endDate = new Date(document.getElementById('end_date').value);
+        const currency = document.getElementById('currency').value;
+
+        if (amount > 0 && rate > 0 && startDate && endDate && endDate > startDate) {
+            const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+            const interest = amount * (rate / 100) * (days / 365);
+            const total = amount + interest;
+
+            document.getElementById('preview-capital').textContent = currency + ' ' + amount.toLocaleString('es-AR', { maximumFractionDigits: 0 });
+            document.getElementById('preview-interest').textContent = '+' + currency + ' ' + interest.toLocaleString('es-AR', { maximumFractionDigits: 0 });
+            document.getElementById('preview-total').textContent = currency + ' ' + total.toLocaleString('es-AR', { maximumFractionDigits: 0 });
+
+            document.getElementById('calculation-preview').style.display = 'block';
+        }
+    }
+
+    // Add event listeners
+    document.getElementById('amount').addEventListener('input', calculatePreview);
+    document.getElementById('interest_rate').addEventListener('input', calculatePreview);
+    document.getElementById('start_date').addEventListener('change', calculatePreview);
+    document.getElementById('end_date').addEventListener('change', calculatePreview);
+    document.getElementById('currency').addEventListener('change', calculatePreview);
+
+    // Initial check
+    toggleInterestFields();
+</script>
+{% endblock %}

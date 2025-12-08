@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Carteras{% endblock %}
+{% block header_title %}Carteras{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2>Carteras de Inversión</h2>
+        <p class="text-secondary">Gestiona las carteras de acciones y bonos por broker</p>
+    </div>
+    <a href="{{ url_for('portfolio_new') }}" class="btn btn-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        Nueva Cartera
+    </a>
+</div>
+
+{% if portfolios %}
+<div class="grid-3">
+    {% for portfolio in portfolios %}
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">{{ portfolio.name }}</h3>
+            <span class="badge badge-primary">{{ portfolio.stocks.count() }} activos</span>
+        </div>
+        <div class="card-body">
+            <p class="text-secondary mb-2">
+                <strong>Broker:</strong> {{ portfolio.broker.name }}
+            </p>
+            {% if portfolio.description %}
+            <p class="text-muted" style="font-size: 0.875rem;">{{ portfolio.description[:80] }}{% if
+                portfolio.description|length > 80 %}...{% endif %}</p>
+            {% endif %}
+
+            <div class="stat-card success mt-3" style="padding: 1rem;">
+                <div class="stat-content">
+                    <div class="stat-label">Valor Total Cartera</div>
+                    <div class="stat-value" style="font-size: 1.25rem;">${{ "{:,.0f}".format(portfolio.total_value) }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer">
+            <a href="{{ url_for('portfolio_detail', portfolio_id=portfolio.id) }}" class="btn btn-sm btn-primary">
+                Ver Detalle →
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="1.5">
+                <path
+                    d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                </path>
+            </svg>
+            <h3>Sin carteras</h3>
+            <p>Crea tu primera cartera de inversiones</p>
+            <a href="{{ url_for('portfolio_new') }}" class="btn btn-primary">Nueva Cartera</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

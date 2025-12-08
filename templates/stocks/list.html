@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}Acciones y Bonos{% endblock %}
+{% block header_title %}Acciones y Bonos{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2>Listado de Activos</h2>
+        <p class="text-secondary">Cotizaciones en tiempo real desde IOL</p>
+    </div>
+    <div class="flex gap-2">
+        <!-- IOL Update Button -->
+        <form method="POST" action="{{ url_for('stocks_update_from_iol') }}" style="display: inline;">
+            <button type="submit" class="btn btn-primary" id="update-iol-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <polyline points="23,4 23,10 17,10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                </svg>
+                Actualizar Precios
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Add New Bond Form -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Agregar Nuevo Activo</h3>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('stocks_add_custom') }}" class="flex gap-2"
+            style="align-items: flex-end; flex-wrap: wrap;">
+            <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+                <label class="form-label">Simbolo *</label>
+                <input type="text" class="form-control" name="symbol" placeholder="Ej: GGAL, YPF, AL35" required
+                    style="text-transform: uppercase;">
+            </div>
+            <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+                <label class="form-label">Nombre (opcional)</label>
+                <input type="text" class="form-control" name="name" placeholder="Ej: Grupo Galicia">
+            </div>
+            <div class="form-group" style="margin-bottom: 0; min-width: 120px;">
+                <label class="form-label">Tipo</label>
+                <select class="form-control" name="stock_type">
+                    <option value="bono">Bono</option>
+                    <option value="accion">Accion</option>
+                    <option value="cedear">CEDEAR</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Agregar
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="alert alert-info mb-3">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="16" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>
+    <strong>Actualizacion Automatica:</strong> Los precios se actualizan automaticamente cada 30 minutos desde IOL.
+    El historial diario se guarda para generar graficas.
+</div>
+
+{% if stocks %}
+<div class="table-container">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Simbolo</th>
+                <th>Nombre</th>
+                <th>Tipo</th>
+                <th>Mercado</th>
+                <th>Precio Actual</th>
+                <th>Ultima Actualizacion</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for stock in stocks %}
+            <tr>
+                <td><strong>{{ stock.symbol }}</strong></td>
+                <td>{{ stock.name or '-' }}</td>
+                <td>
+                    <span
+                        class="badge badge-{% if stock.stock_type == 'accion' %}info{% elif stock.stock_type == 'bono' %}warning{% else %}primary{% endif %}">
+                        {{ stock.stock_type|title }}
+                    </span>
+                </td>
+                <td>{{ stock.market }}</td>
+                <td>
+                    {% if stock.current_price %}
+                    <strong class="text-success">{{ stock.currency }} {{ "{:,.2f}".format(stock.current_price)
+                        }}</strong>
+                    {% else %}
+                    <span class="text-muted">Sin precio</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if stock.last_updated %}
+                    <span class="text-secondary">{{ stock.last_updated.strftime('%d/%m/%Y %H:%M') }}</span>
+                    {% else %}
+                    <span class="text-muted">Nunca</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="flex gap-1">
+                        <a href="{{ url_for('stock_history', stock_id=stock.id) }}" class="btn btn-sm btn-ghost">
+                            Historial
+                        </a>
+                        <form method="POST" action="{{ url_for('stock_delete', stock_id=stock.id) }}"
+                            style="display: inline;" onsubmit="return confirm('Eliminar {{ stock.symbol }}?')">
+                            <button type="submit" class="btn btn-sm btn-ghost" style="color: var(--danger-color);">
+                                Eliminar
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Price History Chart -->
+<div class="card mt-3">
+    <div class="card-header">
+        <h3 class="card-title">Evolucion de Precios (Ultimos 30 dias)</h3>
+    </div>
+    <div class="card-body">
+        <canvas id="priceChart" height="300"></canvas>
+    </div>
+</div>
+
+{% else %}
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="1.5">
+                <polyline points="22,7 13.5,15.5 8.5,10.5 2,17"></polyline>
+                <polyline points="16,7 22,7 22,13"></polyline>
+            </svg>
+            <h3>Sin activos registrados</h3>
+            <p>Agrega bonos o acciones usando el formulario de arriba</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Scheduler Status -->
+<div class="card mt-3">
+    <div class="card-header">
+        <h3 class="card-title">Estado del Sistema</h3>
+    </div>
+    <div class="card-body">
+        <div class="flex gap-3" style="align-items: center;">
+            <button class="btn btn-secondary" onclick="testIOLConnection()">
+                Probar Conexion IOL
+            </button>
+            <span id="iol-status"></span>
+        </div>
+        <p class="text-muted mt-2" style="font-size: 0.875rem;">
+            Los precios se actualizan automaticamente cada 30 minutos mientras el servidor este corriendo.
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function testIOLConnection() {
+        const statusEl = document.getElementById('iol-status');
+        statusEl.innerHTML = '<span class="text-secondary">Conectando...</span>';
+
+        fetch('/api/iol/test-connection')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    statusEl.innerHTML = '<span class="badge badge-success">OK - ' + data.message + '</span>';
+                } else {
+                    statusEl.innerHTML = '<span class="badge badge-danger">ERROR - ' + data.message + '</span>';
+                }
+            })
+            .catch(error => {
+                statusEl.innerHTML = '<span class="badge badge-danger">Error de conexion</span>';
+            });
+    }
+
+    // Price Chart
+    {% if stocks %}
+    fetch('/api/stocks/price-history')
+        .then(response => response.json())
+        .then(data => {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+
+            if (Object.keys(data).length === 0) {
+                ctx.canvas.parentElement.innerHTML = '<p class="text-muted text-center">Sin datos de historial aun. Actualiza los precios para generar el grafico.</p>';
+                return;
+            }
+
+            const datasets = Object.keys(data).map((symbol, idx) => {
+                const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
+                return {
+                    label: symbol,
+                    data: data[symbol].map(p => p.price),
+                    borderColor: colors[idx % colors.length],
+                    backgroundColor: 'transparent',
+                    tension: 0.3
+                };
+            });
+
+            // Get labels from first dataset
+            const firstSymbol = Object.keys(data)[0];
+            const labels = data[firstSymbol].map(p => p.date);
+
+            new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: false }
+                    },
+                    plugins: {
+                        legend: { position: 'top' }
+                    }
+                }
+            });
+        });
+    {% endif %}
+</script>
+{% endblock %}

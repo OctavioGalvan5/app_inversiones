@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Inversiones{% endblock %}
+{% block header_title %}Inversiones{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2>Listado de Inversiones</h2>
+        <p class="text-secondary">Gestiona plazos fijos, bonos, acciones y más</p>
+    </div>
+    <a href="{{ url_for('investment_new') }}" class="btn btn-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        Nueva Inversión
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="card mb-3">
+    <div class="card-body" style="padding: 1rem;">
+        <form method="GET" class="flex gap-2 items-center" style="flex-wrap: wrap;">
+            <select name="type" class="form-control" style="max-width: 200px;" onchange="this.form.submit()">
+                <option value="all" {% if current_type=='all' %}selected{% endif %}>Todos los tipos</option>
+                <option value="plazo_fijo" {% if current_type=='plazo_fijo' %}selected{% endif %}>Plazo Fijo</option>
+                <option value="bono" {% if current_type=='bono' %}selected{% endif %}>Bonos</option>
+                <option value="accion" {% if current_type=='accion' %}selected{% endif %}>Acciones</option>
+                <option value="fci" {% if current_type=='fci' %}selected{% endif %}>FCI</option>
+                <option value="crypto" {% if current_type=='crypto' %}selected{% endif %}>Crypto</option>
+            </select>
+
+            <select name="status" class="form-control" style="max-width: 200px;" onchange="this.form.submit()">
+                <option value="all" {% if current_status=='all' %}selected{% endif %}>Todos los estados</option>
+                <option value="active" {% if current_status=='active' %}selected{% endif %}>Activas</option>
+                <option value="completed" {% if current_status=='completed' %}selected{% endif %}>Completadas</option>
+                <option value="cancelled" {% if current_status=='cancelled' %}selected{% endif %}>Canceladas</option>
+            </select>
+        </form>
+    </div>
+</div>
+
+{% if investments %}
+<div class="table-container">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Tipo</th>
+                <th>Monto</th>
+                <th>Tasa</th>
+                <th>Vencimiento</th>
+                <th>Rendimiento</th>
+                <th>Estado</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for inv in investments %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('investment_detail', investment_id=inv.id) }}">
+                        <strong>{{ inv.name }}</strong>
+                    </a>
+                    {% if inv.broker_rel %}
+                    <br><span class="text-muted" style="font-size: 0.8125rem;">{{ inv.broker_rel.name }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span
+                        class="badge badge-{% if inv.investment_type == 'plazo_fijo' %}success{% elif inv.investment_type == 'bono' %}warning{% elif inv.investment_type == 'accion' %}info{% else %}primary{% endif %}">
+                        {{ inv.investment_type|replace('_', ' ')|title }}
+                    </span>
+                </td>
+                <td>
+                    <strong>{{ inv.currency }} {{ "{:,.0f}".format(inv.amount) }}</strong>
+                </td>
+                <td>
+                    {% if inv.interest_rate %}
+                    {{ inv.interest_rate }}%
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if inv.end_date %}
+                    {{ inv.end_date.strftime('%d/%m/%Y') }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if inv.calculated_return > 0 %}
+                    <span class="text-success font-bold">+{{ inv.currency }} {{ "{:,.0f}".format(inv.calculated_return)
+                        }}</span>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td>
+                    <span
+                        class="badge badge-{% if inv.status == 'active' %}success{% elif inv.status == 'completed' %}primary{% else %}danger{% endif %}">
+                        {{ inv.status|title }}
+                    </span>
+                </td>
+                <td>
+                    <a href="{{ url_for('investment_detail', investment_id=inv.id) }}" class="btn btn-sm btn-ghost">
+                        Ver →
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="1.5">
+                <line x1="12" y1="1" x2="12" y2="23"></line>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+            <h3>Sin inversiones</h3>
+            <p>Comienza agregando tu primera inversión</p>
+            <a href="{{ url_for('investment_new') }}" class="btn btn-primary">Nueva Inversión</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

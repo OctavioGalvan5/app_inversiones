@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Iniciar Sesión{% endblock %}
+
+{% block auth_content %}
+<div class="auth-container">
+    <div class="auth-card slide-up">
+        <div class="auth-header">
+            <div class="auth-logo">CA</div>
+            <h1 class="auth-title">Bienvenido</h1>
+            <p class="auth-subtitle">Sistema de Inversiones • Caja de Abogados de Salta</p>
+        </div>
+
+        <div class="auth-body">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">
+                {{ message }}
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('login') }}">
+                <div class="form-group">
+                    <label class="form-label" for="username">Usuario</label>
+                    <input type="text" class="form-control" id="username" name="username"
+                        placeholder="Ingresa tu usuario" required autofocus>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">Contraseña</label>
+                    <input type="password" class="form-control" id="password" name="password"
+                        placeholder="Ingresa tu contraseña" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg" style="width: 100%;">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                        <polyline points="10,17 15,12 10,7"></polyline>
+                        <line x1="15" y1="12" x2="3" y2="12"></line>
+                    </svg>
+                    Iniciar Sesión
+                </button>
+            </form>
+        </div>
+
+        <div class="auth-footer">
+            <p>¿No tienes cuenta? <a href="{{ url_for('register') }}"><strong>Regístrate aquí</strong></a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

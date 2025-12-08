@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block title %}{{ portfolio.name }}{% endblock %}
+{% block header_title %}{{ portfolio.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <a href="{{ url_for('portfolios_list') }}" class="text-secondary" style="font-size: 0.875rem;">← Volver a
+            Carteras</a>
+        <h2 style="margin-top: 0.5rem;">{{ portfolio.name }}</h2>
+        <p class="text-secondary">Broker: {{ portfolio.broker.name }}</p>
+    </div>
+</div>
+
+<!-- Portfolio Stats -->
+<div class="stats-grid">
+    <div class="stat-card success">
+        <div class="stat-icon success">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
+                <line x1="12" y1="1" x2="12" y2="23"></line>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+        </div>
+        <div class="stat-content">
+            <div class="stat-label">Valor Total</div>
+            <div class="stat-value">${{ "{:,.0f}".format(portfolio.total_value) }}</div>
+        </div>
+    </div>
+
+    <div class="stat-card info">
+        <div class="stat-icon info">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
+                <polyline points="22,7 13.5,15.5 8.5,10.5 2,17"></polyline>
+                <polyline points="16,7 22,7 22,13"></polyline>
+            </svg>
+        </div>
+        <div class="stat-content">
+            <div class="stat-label">Activos</div>
+            <div class="stat-value">{{ portfolio.stocks.count() }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <!-- Add Stock Form -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">➕ Agregar Activo</h3>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('portfolio_add_stock', portfolio_id=portfolio.id) }}">
+                <div class="form-group">
+                    <label class="form-label" for="symbol">Símbolo/Código *</label>
+                    <input type="text" class="form-control" id="symbol" name="symbol" placeholder="Ej: GGAL, YPFD, AAPL"
+                        required style="text-transform: uppercase;">
+                    <span class="form-hint">Código del activo (ticker)</span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="name">Nombre (opcional)</label>
+                    <input type="text" class="form-control" id="name" name="name" placeholder="Ej: Galicia CEDEAR">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="stock_type">Tipo</label>
+                        <select class="form-control" id="stock_type" name="stock_type">
+                            <option value="accion">Acción</option>
+                            <option value="bono">Bono</option>
+                            <option value="cedear">CEDEAR</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="market">Mercado</label>
+                        <select class="form-control" id="market" name="market">
+                            <option value="BCBA">BCBA (Argentina)</option>
+                            <option value="NYSE">NYSE</option>
+                            <option value="NASDAQ">NASDAQ</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="quantity">Cantidad *</label>
+                        <input type="number" step="0.01" min="0" class="form-control" id="quantity" name="quantity"
+                            placeholder="100" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="purchase_price">Precio de Compra *</label>
+                        <input type="number" step="0.01" min="0" class="form-control" id="purchase_price"
+                            name="purchase_price" placeholder="1500.00" required>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Agregar Activo
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Portfolio Description -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Información</h3>
+        </div>
+        <div class="card-body">
+            {% if portfolio.description %}
+            <p>{{ portfolio.description }}</p>
+            {% else %}
+            <p class="text-muted">Sin descripción.</p>
+            {% endif %}
+
+            <div class="mt-3">
+                <strong class="text-muted" style="font-size: 0.75rem; text-transform: uppercase;">Broker</strong>
+                <p><a href="{{ url_for('broker_detail', broker_id=portfolio.broker.id) }}">{{ portfolio.broker.name
+                        }}</a></p>
+            </div>
+
+            <div class="mt-2">
+                <strong class="text-muted" style="font-size: 0.75rem; text-transform: uppercase;">Fecha de
+                    Creación</strong>
+                <p>{{ portfolio.created_at.strftime('%d/%m/%Y') }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stocks Table -->
+<div class="card mt-3">
+    <div class="card-header">
+        <h3 class="card-title">📊 Composición de la Cartera</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        {% if portfolio.stocks.count() > 0 %}
+        <div class="table-container" style="box-shadow: none;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Símbolo</th>
+                        <th>Nombre</th>
+                        <th>Tipo</th>
+                        <th>Cantidad</th>
+                        <th>P. Compra</th>
+                        <th>P. Actual</th>
+                        <th>Valor</th>
+                        <th>Ganancia/Pérdida</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ps in portfolio.stocks.all() %}
+                    <tr>
+                        <td><strong>{{ ps.stock.symbol }}</strong></td>
+                        <td>{{ ps.stock.name or '-' }}</td>
+                        <td>
+                            <span
+                                class="badge badge-{% if ps.stock.stock_type == 'accion' %}info{% elif ps.stock.stock_type == 'bono' %}warning{% else %}primary{% endif %}">
+                                {{ ps.stock.stock_type|title }}
+                            </span>
+                        </td>
+                        <td>{{ "{:,.2f}".format(ps.quantity) }}</td>
+                        <td>${{ "{:,.2f}".format(ps.purchase_price) }}</td>
+                        <td>
+                            {% if ps.stock.current_price %}
+                            ${{ "{:,.2f}".format(ps.stock.current_price) }}
+                            {% else %}
+                            <span class="text-muted">Sin precio</span>
+                            {% endif %}
+                        </td>
+                        <td><strong>${{ "{:,.0f}".format(ps.current_value) }}</strong></td>
+                        <td>
+                            {% if ps.stock.current_price %}
+                            {% if ps.gain_loss >= 0 %}
+                            <span class="text-success font-bold">
+                                +${{ "{:,.0f}".format(ps.gain_loss) }}
+                                <small>(+{{ "{:.1f}".format(ps.gain_loss_percentage) }}%)</small>
+                            </span>
+                            {% else %}
+                            <span class="text-danger font-bold">
+                                ${{ "{:,.0f}".format(ps.gain_loss) }}
+                                <small>({{ "{:.1f}".format(ps.gain_loss_percentage) }}%)</small>
+                            </span>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="1.5">
+                <polyline points="22,7 13.5,15.5 8.5,10.5 2,17"></polyline>
+                <polyline points="16,7 22,7 22,13"></polyline>
+            </svg>
+            <h3>Cartera vacía</h3>
+            <p>Agrega activos usando el formulario de arriba</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
