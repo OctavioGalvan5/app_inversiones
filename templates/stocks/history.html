@@ -45,25 +45,30 @@
         <h3 class="card-title">Evolucion del Precio</h3>
     </div>
     <div class="card-body">
-        <canvas id="stockChart" height="300"></canvas>
+        {% if history %}
+        <div style="height: 300px; position: relative;">
+            <canvas id="stockChart"></canvas>
+        </div>
+        {% else %}
+        <p class="text-muted text-center">Sin datos de historial para mostrar grafico</p>
+        {% endif %}
     </div>
 </div>
 
 <!-- History Table -->
 <div class="card mt-3">
     <div class="card-header">
-        <h3 class="card-title">Historial de Precios</h3>
+        <h3 class="card-title">Historial de Precios ({{ history|length }} registros)</h3>
     </div>
     <div class="card-body" style="padding: 0;">
         {% if history %}
-        <div class="table-container" style="box-shadow: none;">
+        <div class="table-container" style="box-shadow: none; max-height: 400px; overflow-y: auto;">
             <table class="table">
                 <thead>
                     <tr>
                         <th>Fecha</th>
                         <th>Precio</th>
                         <th>Volumen</th>
-                        <th>Variacion</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -72,22 +77,6 @@
                         <td>{{ h.date.strftime('%d/%m/%Y') }}</td>
                         <td><strong>{{ stock.currency }} {{ "{:,.2f}".format(h.price) }}</strong></td>
                         <td>{{ "{:,}".format(h.volume) if h.volume else '-' }}</td>
-                        <td>
-                            {% if loop.index < history|length %} {% set prev_price=history[loop.index].price %} {% if
-                                prev_price> 0 %}
-                                {% set change = ((h.price - prev_price) / prev_price * 100) %}
-                                {% if change >= 0 %}
-                                <span class="text-success">+{{ "%.2f"|format(change) }}%</span>
-                                {% else %}
-                                <span class="text-danger">{{ "%.2f"|format(change) }}%</span>
-                                {% endif %}
-                                {% else %}
-                                <span class="text-muted">-</span>
-                                {% endif %}
-                                {% else %}
-                                <span class="text-muted">-</span>
-                                {% endif %}
-                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -109,21 +98,30 @@
 {% endblock %}
 
 {% block extra_js %}
+{% if history %}
 <script>
-    {% if history %}
-    const ctx = document.getElementById('stockChart').getContext('2d');
+    (function () {
+        const ctx = document.getElementById('stockChart');
+        if (!ctx) {
+            console.error('Canvas stockChart not found');
+            return;
+        }
 
-    // Reverse to show oldest first
-    const dates = {{ history| map(attribute = 'date') | map('strftime', '%d/%m') | list | reverse | tojson }};
-    const prices = {{ history| map(attribute = 'price') | list | reverse | tojson }};
+        // Build data arrays
+        const chartData = {
+            labels: [{% for h in history | reverse %}"{{ h.date.strftime('%d/%m') }}"{% if not loop.last %}, {% endif %} {% endfor %}],
+        prices: [{% for h in history | reverse %}{ { h.price } } {% if not loop.last %}, {% endif %} {% endfor %}]
+    };
+
+    console.log('Chart data:', chartData);
 
     new Chart(ctx, {
         type: 'line',
         data: {
-            labels: dates,
+            labels: chartData.labels,
             datasets: [{
                 label: '{{ stock.symbol }}',
-                data: prices,
+                data: chartData.prices,
                 borderColor: '#3b82f6',
                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
                 fill: true,
@@ -134,13 +132,28 @@
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                y: { beginAtZero: false }
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        callback: function (value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                }
             },
             plugins: {
-                legend: { display: false }
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function (context) {
+                            return '{{ stock.currency }} ' + context.parsed.y.toLocaleString();
+                        }
+                    }
+                }
             }
         }
     });
-    {% endif %}
+}) ();
 </script>
+{% endif %}
 {% endblock %}

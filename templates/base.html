@@ -1,27 +1,32 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Inversiones{% endblock %} | Caja de Abogados de Salta</title>
     <meta name="description" content="Sistema de gestión de inversiones de la Caja de Abogados de Salta">
-    
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+
     <!-- Chart.js for graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    
+
     {% block extra_css %}{% endblock %}
 </head>
+
 <body>
     {% if current_user.is_authenticated %}
     <div class="app-container">
+        <!-- Sidebar Overlay (for mobile) -->
+        <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
@@ -31,11 +36,13 @@
                     <div class="sidebar-subtitle">Salta • Inversiones</div>
                 </div>
             </div>
-            
+
             <nav class="sidebar-nav">
                 <div class="nav-section">Principal</div>
-                <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <a href="{{ url_for('dashboard') }}"
+                    class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="3" y="3" width="7" height="7"></rect>
                         <rect x="14" y="3" width="7" height="7"></rect>
                         <rect x="14" y="14" width="7" height="7"></rect>
@@ -43,10 +50,12 @@
                     </svg>
                     Dashboard
                 </a>
-                
+
                 <div class="nav-section">Gestión</div>
-                <a href="{{ url_for('brokers_list') }}" class="nav-link {% if 'broker' in request.endpoint %}active{% endif %}">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <a href="{{ url_for('brokers_list') }}"
+                    class="nav-link {% if 'broker' in request.endpoint %}active{% endif %}">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
                         <circle cx="9" cy="7" r="4"></circle>
                         <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
@@ -54,35 +63,44 @@
                     </svg>
                     Brokers
                 </a>
-                
-                <a href="{{ url_for('investments_list') }}" class="nav-link {% if 'investment' in request.endpoint %}active{% endif %}">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+
+                <a href="{{ url_for('investments_list') }}"
+                    class="nav-link {% if 'investment' in request.endpoint %}active{% endif %}">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="12" y1="1" x2="12" y2="23"></line>
                         <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                     </svg>
                     Inversiones
                 </a>
-                
-                <a href="{{ url_for('portfolios_list') }}" class="nav-link {% if 'portfolio' in request.endpoint %}active{% endif %}">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+
+                <a href="{{ url_for('portfolios_list') }}"
+                    class="nav-link {% if 'portfolio' in request.endpoint %}active{% endif %}">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path
+                            d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                        </path>
                         <polyline points="3.27,6.96 12,12.01 20.73,6.96"></polyline>
                         <line x1="12" y1="22.08" x2="12" y2="12"></line>
                     </svg>
                     Carteras
                 </a>
-                
-                <a href="{{ url_for('stocks_list') }}" class="nav-link {% if 'stock' in request.endpoint %}active{% endif %}">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+
+                <a href="{{ url_for('stocks_list') }}"
+                    class="nav-link {% if 'stock' in request.endpoint %}active{% endif %}">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="22,7 13.5,15.5 8.5,10.5 2,17"></polyline>
                         <polyline points="16,7 22,7 22,13"></polyline>
                     </svg>
                     Acciones y Bonos
                 </a>
-                
+
                 <div class="nav-section">Usuario</div>
                 <a href="{{ url_for('logout') }}" class="nav-link">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                         <polyline points="16,17 21,12 16,7"></polyline>
                         <line x1="21" y1="12" x2="9" y2="12"></line>
@@ -91,62 +109,107 @@
                 </a>
             </nav>
         </aside>
-        
+
         <!-- Main Content -->
         <main class="main-content">
             <!-- Header -->
             <header class="header">
                 <button class="btn btn-ghost" id="menu-toggle" onclick="toggleSidebar()">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="3" y1="12" x2="21" y2="12"></line>
                         <line x1="3" y1="6" x2="21" y2="6"></line>
                         <line x1="3" y1="18" x2="21" y2="18"></line>
                     </svg>
                 </button>
-                
+
                 <h1 class="header-title">{% block header_title %}Dashboard{% endblock %}</h1>
-                
+
                 <div class="header-actions">
                     <div class="user-menu">
-                        <div class="user-avatar">{{ current_user.full_name[0] if current_user.full_name else current_user.username[0]|upper }}</div>
+                        <div class="user-avatar">{{ current_user.full_name[0] if current_user.full_name else
+                            current_user.username[0]|upper }}</div>
                         <span class="user-name">{{ current_user.full_name or current_user.username }}</span>
                     </div>
                 </div>
             </header>
-            
+
             <!-- Page Content -->
             <div class="page-content">
                 <!-- Flash Messages -->
                 {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ category }}">
-                                {% if category == 'success' %}
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22,4 12,14.01 9,11.01"></polyline></svg>
-                                {% elif category == 'error' %}
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-                                {% else %}
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                                {% endif %}
-                                {{ message }}
-                            </div>
-                        {% endfor %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">
+                    {% if category == 'success' %}
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22,4 12,14.01 9,11.01"></polyline>
+                    </svg>
+                    {% elif category == 'error' %}
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                    </svg>
+                    {% else %}
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
                     {% endif %}
+                    {{ message }}
+                </div>
+                {% endfor %}
+                {% endif %}
                 {% endwith %}
-                
+
                 {% block content %}{% endblock %}
             </div>
         </main>
     </div>
     {% else %}
-        {% block auth_content %}{% endblock %}
+    {% block auth_content %}{% endblock %}
     {% endif %}
-    
+
     <script>
         function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('open');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+            // Prevent body scroll when sidebar is open on mobile
+            document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
         }
-        
+
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Close sidebar when clicking a nav link on mobile
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 992) {
+                    closeSidebar();
+                }
+            });
+        });
+
+        // Close sidebar on window resize if switching to desktop
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 992) {
+                closeSidebar();
+            }
+        });
+
         // Star rating functionality
         document.querySelectorAll('.star-rating').forEach(rating => {
             rating.querySelectorAll('.star').forEach((star, index) => {
@@ -161,7 +224,8 @@
             });
         });
     </script>
-    
+
     {% block extra_js %}{% endblock %}
 </body>
+
 </html>

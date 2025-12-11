@@ -830,12 +830,16 @@ def init_db():
             print("Admin user created: admin / admin123")
 
 
-if __name__ == '__main__':
-    init_db()
-    
-    # Start the scheduler for automatic price updates
+# Start scheduler for production (Gunicorn/Docker)
+# This runs when the module is imported
+import os
+if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':  # Avoid double-start in Flask debug mode
     scheduler.start()
     print("[SCHEDULER] Iniciado - Precios se actualizaran cada 30 minutos")
+
+
+if __name__ == '__main__':
+    init_db()
     
     # Run initial price update
     update_prices_from_iol()

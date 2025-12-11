@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local data (will be mounted as volume)
+*.db
+data/
+instance/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Debug files
+debug_*.py
+import_historical_prices.py
+
+# Misc
+*.log
+.DS_Store

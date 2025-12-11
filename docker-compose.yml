@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: inversiones-app
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:-tu_clave_secreta_aqui}
+      - IOL_USERNAME=${IOL_USERNAME}
+      - IOL_PASSWORD=${IOL_PASSWORD}
+    volumes:
+      # Persist SQLite database
+      - ./data:/app/data
+      # Persist instance folder (if using Flask instance folder)
+      - ./instance:/app/instance
+    restart: unless-stopped
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
