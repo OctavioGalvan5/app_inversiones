@@ -246,8 +246,12 @@ class Message(db.Model):
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     broker_id = db.Column(db.Integer, db.ForeignKey('brokers.id'))
     investment_id = db.Column(db.Integer, db.ForeignKey('investments.id'))
-    message_type = db.Column(db.String(20), default='general')  # general, broker, investment
+    portfolio_id = db.Column(db.Integer, db.ForeignKey('portfolios.id'))
+    message_type = db.Column(db.String(20), default='general')  # general, broker, investment, portfolio
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    portfolio = db.relationship('Portfolio', backref='messages')
     
     def __repr__(self):
         return f'<Message {self.id}>'

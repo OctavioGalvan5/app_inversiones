@@ -322,6 +322,52 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Messages Section -->
+<div class="card mt-3">
+    <div class="card-header">
+        <h3 class="card-title">💬 Mensajes</h3>
+    </div>
+    <div class="card-body">
+        <!-- Add message form -->
+        <form method="POST" action="{{ url_for('portfolio_add_message', portfolio_id=portfolio.id) }}"
+            style="margin-bottom: 1.5rem;">
+            <div class="form-group" style="margin-bottom: 0.5rem;">
+                <textarea class="form-control" name="content"
+                    placeholder="Escribe un mensaje o nota sobre esta cartera..." rows="2" required
+                    style="min-height: 60px;"></textarea>
+            </div>
+            <button type="submit" class="btn btn-sm btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                Enviar Mensaje
+            </button>
+        </form>
+
+        <!-- Messages list -->
+        {% if portfolio.messages %}
+        <div class="message-list">
+            {% for msg in portfolio.messages|sort(attribute='created_at', reverse=True) %}
+            <div class="message-item">
+                <div class="message-avatar">{{ msg.author.full_name[0] if msg.author.full_name else
+                    msg.author.username[0]|upper }}</div>
+                <div class="message-content">
+                    <div class="message-header">
+                        <span class="message-author">{{ msg.author.full_name or msg.author.username }}</span>
+                        <span class="message-time">{{ msg.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                    </div>
+                    <p class="message-text">{{ msg.content }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted text-center" style="margin: 0;">No hay mensajes aún. Sé el primero en comentar.</p>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -465,7 +511,7 @@
         {% for ps in portfolio.stocks.all() %}
     {
         symbol: '{{ ps.stock.symbol }}',
-            value: {{ ps.current_value or 0 }}
+            value: { { ps.current_value or 0 } }
     },
     {% endfor %}
     ];

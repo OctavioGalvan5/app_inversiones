@@ -489,6 +489,23 @@ def portfolio_add_stock(portfolio_id):
     return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
 
 
+@app.route('/portfolios/<int:portfolio_id>/message', methods=['POST'])
+@login_required
+def portfolio_add_message(portfolio_id):
+    content = request.form.get('content')
+    if content:
+        message = Message(
+            content=content,
+            author_id=current_user.id,
+            portfolio_id=portfolio_id,
+            message_type='portfolio'
+        )
+        db.session.add(message)
+        db.session.commit()
+        flash('Mensaje agregado', 'success')
+    return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
+
+
 # ==================== STOCKS ====================
 
 @app.route('/stocks')
@@ -760,9 +777,13 @@ def api_portfolio_value_history(portfolio_id):
     gain_loss = current_value - initial_investment
     gain_loss_pct = ((current_value - initial_investment) / initial_investment * 100) if initial_investment > 0 else 0
     
-    # Get dates range for last 90 days
+    # Get dates range from portfolio creation date
     end_date = date.today()
-    start_date = end_date - timedelta(days=90)
+    # Use portfolio creation date as start, or 90 days ago if created_at is None
+    if portfolio.created_at:
+        start_date = portfolio.created_at.date() if hasattr(portfolio.created_at, 'date') else portfolio.created_at
+    else:
+        start_date = end_date - timedelta(days=90)
     
     # Get all stock IDs in portfolio
     stock_ids = [ps.stock_id for ps in portfolio_stocks]

@@ -30,12 +30,12 @@
             <p class="text-secondary mb-2">
                 <strong>Broker:</strong> {{ portfolio.broker.name }}
             </p>
-            {% if portfolio.description %}
+            {% if portfolio.description and portfolio.description.lower().strip() != portfolio.name.lower().strip() %}
             <p class="text-muted" style="font-size: 0.875rem;">{{ portfolio.description[:80] }}{% if
                 portfolio.description|length > 80 %}...{% endif %}</p>
             {% endif %}
 
-            <div class="stat-card success mt-3" style="padding: 1rem;">
+            <div class="stat-card mt-3" style="padding: 1rem;">
                 <div class="stat-content">
                     <div class="stat-label">Valor Total Cartera</div>
                     <div class="stat-value" style="font-size: 1.25rem;">${{ "{:,.0f}".format(portfolio.total_value) }}

@@ -201,22 +201,27 @@
         {% if recent_messages %}
         <div class="message-list">
             {% for msg in recent_messages %}
-            <div class="message-item">
-                <div class="message-avatar">{{ msg.author.full_name[0] if msg.author.full_name else
-                    msg.author.username[0]|upper }}</div>
-                <div class="message-content">
-                    <div class="message-header">
-                        <span class="message-author">{{ msg.author.full_name or msg.author.username }}</span>
-                        <span class="message-time">{{ msg.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+            <a href="{% if msg.broker_id %}{{ url_for('broker_detail', broker_id=msg.broker_id) }}{% elif msg.investment_id %}{{ url_for('investment_detail', investment_id=msg.investment_id) }}{% elif msg.portfolio_id %}{{ url_for('portfolio_detail', portfolio_id=msg.portfolio_id) }}{% else %}#{% endif %}"
+                style="text-decoration: none; color: inherit;">
+                <div class="message-item" style="cursor: pointer;">
+                    <div class="message-avatar">{{ msg.author.full_name[0] if msg.author.full_name else
+                        msg.author.username[0]|upper }}</div>
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="message-author">{{ msg.author.full_name or msg.author.username }}</span>
+                            <span class="message-time">{{ msg.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                        </div>
+                        <p class="message-text">{{ msg.content }}</p>
+                        {% if msg.broker_id %}
+                        <span class="badge badge-primary mt-1">Broker: {{ msg.broker.name }}</span>
+                        {% elif msg.investment_id %}
+                        <span class="badge badge-success mt-1">Inversión: {{ msg.investment.name }}</span>
+                        {% elif msg.portfolio_id %}
+                        <span class="badge badge-info mt-1">Cartera: {{ msg.portfolio.name }}</span>
+                        {% endif %}
                     </div>
-                    <p class="message-text">{{ msg.content }}</p>
-                    {% if msg.broker_id %}
-                    <span class="badge badge-primary mt-1">Broker: {{ msg.broker.name }}</span>
-                    {% elif msg.investment_id %}
-                    <span class="badge badge-success mt-1">Inversión: {{ msg.investment.name }}</span>
-                    {% endif %}
                 </div>
-            </div>
+            </a>
             {% endfor %}
         </div>
         {% else %}
