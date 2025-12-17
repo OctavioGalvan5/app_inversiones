@@ -437,7 +437,8 @@ def portfolio_new():
 @login_required
 def portfolio_detail(portfolio_id):
     portfolio = Portfolio.query.get_or_404(portfolio_id)
-    return render_template('portfolios/detail.html', portfolio=portfolio)
+    stocks = Stock.query.order_by(Stock.symbol).all()
+    return render_template('portfolios/detail.html', portfolio=portfolio, stocks=stocks)
 
 
 @app.route('/portfolios/<int:portfolio_id>/add-stock', methods=['POST'])
@@ -445,21 +446,33 @@ def portfolio_detail(portfolio_id):
 def portfolio_add_stock(portfolio_id):
     portfolio = Portfolio.query.get_or_404(portfolio_id)
     
-    symbol = request.form.get('symbol').upper()
     quantity = float(request.form.get('quantity'))
     purchase_price = float(request.form.get('purchase_price'))
     
-    # Get or create stock
-    stock = Stock.query.filter_by(symbol=symbol).first()
-    if not stock:
-        stock = Stock(
-            symbol=symbol,
-            name=request.form.get('name') or symbol,
-            stock_type=request.form.get('stock_type', 'accion'),
-            market=request.form.get('market', 'BCBA')
-        )
-        db.session.add(stock)
-        db.session.commit()
+    stock_id = request.form.get('stock_id')
+    
+    # Check if using existing stock or creating new one
+    if stock_id and stock_id != 'new':
+        # Use existing stock
+        stock = Stock.query.get_or_404(int(stock_id))
+    else:
+        # Create new stock from symbol
+        symbol = request.form.get('symbol', '').upper()
+        if not symbol:
+            flash('Debe ingresar un símbolo para el nuevo activo', 'error')
+            return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
+        
+        # Check if stock already exists
+        stock = Stock.query.filter_by(symbol=symbol).first()
+        if not stock:
+            stock = Stock(
+                symbol=symbol,
+                name=request.form.get('name') or symbol,
+                stock_type=request.form.get('stock_type', 'accion'),
+                market=request.form.get('market', 'BCBA')
+            )
+            db.session.add(stock)
+            db.session.commit()
     
     # Add to portfolio
     portfolio_stock = PortfolioStock(
@@ -472,7 +485,7 @@ def portfolio_add_stock(portfolio_id):
     db.session.add(portfolio_stock)
     db.session.commit()
     
-    flash(f'{symbol} agregado a la cartera', 'success')
+    flash(f'{stock.symbol} agregado a la cartera', 'success')
     return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
 
 
@@ -734,39 +747,76 @@ def api_stocks_price_history():
 @app.route('/api/portfolio/<int:portfolio_id>/value-history')
 @login_required
 def api_portfolio_value_history(portfolio_id):
-    """Get portfolio value history for charts"""
+    """Get portfolio value history for charts with extended metrics"""
     from datetime import timedelta
     
     portfolio = Portfolio.query.get_or_404(portfolio_id)
     
-    # Get dates for last 30 days
+    # Calculate basic metrics first (these don't depend on history)
+    portfolio_stocks = portfolio.stocks.all()
+    initial_investment = sum(ps.quantity * ps.purchase_price for ps in portfolio_stocks)
+    current_value = portfolio.total_value
+    
+    gain_loss = current_value - initial_investment
+    gain_loss_pct = ((current_value - initial_investment) / initial_investment * 100) if initial_investment > 0 else 0
+    
+    # Get dates range for last 90 days
+    end_date = date.today()
+    start_date = end_date - timedelta(days=90)
+    
+    # Get all stock IDs in portfolio
+    stock_ids = [ps.stock_id for ps in portfolio_stocks]
+    stock_quantities = {ps.stock_id: ps.quantity for ps in portfolio_stocks}
+    
+    # Fetch all price history in one query
+    price_history = PriceHistory.query.filter(
+        PriceHistory.stock_id.in_(stock_ids),
+        PriceHistory.date >= start_date,
+        PriceHistory.date <= end_date
+    ).all()
+    
+    # Group prices by date
+    prices_by_date = {}
+    for ph in price_history:
+        if ph.date not in prices_by_date:
+            prices_by_date[ph.date] = {}
+        prices_by_date[ph.date][ph.stock_id] = ph.price
+    
+    # Calculate portfolio value for each date
     dates = []
     values = []
     
-    for i in range(30, -1, -1):
-        check_date = date.today() - timedelta(days=i)
-        total_value = 0
-        
-        for ps in portfolio.stocks.all():
-            # Get price for that date
-            price_record = PriceHistory.query.filter_by(
-                stock_id=ps.stock_id,
-                date=check_date
-            ).first()
-            
-            if price_record:
-                total_value += ps.quantity * price_record.price
-            elif ps.stock.current_price:
-                total_value += ps.quantity * ps.stock.current_price
-        
+    for check_date in sorted(prices_by_date.keys()):
+        day_prices = prices_by_date[check_date]
+        total_value = sum(
+            stock_quantities.get(stock_id, 0) * price 
+            for stock_id, price in day_prices.items()
+        )
         if total_value > 0:
             dates.append(check_date.strftime('%d/%m'))
-            values.append(total_value)
+            values.append(round(total_value, 2))
+    
+    # If no historical data, add at least today with current value
+    if not values and current_value > 0:
+        dates.append(date.today().strftime('%d/%m'))
+        values.append(round(current_value, 2))
+    
+    # Calculate max/min from history, or use current if no history
+    max_value = max(values) if values else current_value
+    min_value = min(values) if values else current_value
     
     return jsonify({
         'portfolio': portfolio.name,
         'dates': dates,
-        'values': values
+        'values': values,
+        'metrics': {
+            'initial_investment': round(initial_investment, 2),
+            'current_value': round(current_value, 2),
+            'gain_loss': round(gain_loss, 2),
+            'gain_loss_pct': round(gain_loss_pct, 2),
+            'max_value': round(max_value, 2),
+            'min_value': round(min_value, 2)
+        }
     })
 
 

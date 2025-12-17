@@ -42,9 +42,108 @@
             <div class="stat-value">{{ portfolio.stocks.count() }}</div>
         </div>
     </div>
+
+    <div class="stat-card" id="stat-invested">
+        <div class="stat-icon primary">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                <line x1="1" y1="10" x2="23" y2="10"></line>
+            </svg>
+        </div>
+        <div class="stat-content">
+            <div class="stat-label">Inversión Inicial</div>
+            <div class="stat-value" id="initial-investment">-</div>
+        </div>
+    </div>
+
+    <div class="stat-card" id="stat-gainloss">
+        <div class="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+        </div>
+        <div class="stat-content">
+            <div class="stat-label">Ganancia/Pérdida</div>
+            <div class="stat-value" id="gain-loss">-</div>
+            <div class="stat-hint" id="gain-loss-pct"></div>
+        </div>
+    </div>
 </div>
 
-<div class="grid-2">
+<!-- Performance Chart -->
+<div class="card mt-3">
+    <div class="card-header">
+        <h3 class="card-title">📈 Evolución del Valor (Últimos 90 días)</h3>
+    </div>
+    <div class="card-body">
+        <div id="chart-loading" class="text-center text-muted" style="padding: 2rem;">
+            Cargando gráfico...
+        </div>
+        <canvas id="portfolioChart" height="300" style="display: none;"></canvas>
+        <div id="chart-empty" class="empty-state" style="display: none; padding: 2rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="1.5" width="48" height="48">
+                <polyline points="22,7 13.5,15.5 8.5,10.5 2,17"></polyline>
+                <polyline points="16,7 22,7 22,13"></polyline>
+            </svg>
+            <h3>Sin datos históricos</h3>
+            <p>Actualiza los precios de los activos para generar el gráfico histórico</p>
+        </div>
+    </div>
+</div>
+
+<!-- Additional Metrics Row -->
+<div class="grid-2 mt-3">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">📊 Estadísticas</h3>
+        </div>
+        <div class="card-body">
+            <div class="grid-2" style="gap: 1rem;">
+                <div>
+                    <strong class="text-muted" style="font-size: 0.75rem; text-transform: uppercase;">Máximo
+                        Alcanzado</strong>
+                    <p class="text-success font-bold" id="max-value" style="font-size: 1.25rem;">-</p>
+                </div>
+                <div>
+                    <strong class="text-muted" style="font-size: 0.75rem; text-transform: uppercase;">Mínimo
+                        Registrado</strong>
+                    <p class="text-danger" id="min-value" style="font-size: 1.25rem;">-</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Portfolio Description -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Información</h3>
+        </div>
+        <div class="card-body">
+            {% if portfolio.description %}
+            <p>{{ portfolio.description }}</p>
+            {% else %}
+            <p class="text-muted">Sin descripción.</p>
+            {% endif %}
+
+            <div class="mt-3">
+                <strong class="text-muted" style="font-size: 0.75rem; text-transform: uppercase;">Broker</strong>
+                <p><a href="{{ url_for('broker_detail', broker_id=portfolio.broker.id) }}">{{ portfolio.broker.name
+                        }}</a></p>
+            </div>
+
+            <div class="mt-2">
+                <strong class="text-muted" style="font-size: 0.75rem; text-transform: uppercase;">Fecha de
+                    Creación</strong>
+                <p>{{ portfolio.created_at.strftime('%d/%m/%Y') }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="grid-2 mt-3">
     <!-- Add Stock Form -->
     <div class="card">
         <div class="card-header">
@@ -53,34 +152,53 @@
         <div class="card-body">
             <form method="POST" action="{{ url_for('portfolio_add_stock', portfolio_id=portfolio.id) }}">
                 <div class="form-group">
-                    <label class="form-label" for="symbol">Símbolo/Código *</label>
-                    <input type="text" class="form-control" id="symbol" name="symbol" placeholder="Ej: GGAL, YPFD, AAPL"
-                        required style="text-transform: uppercase;">
-                    <span class="form-hint">Código del activo (ticker)</span>
+                    <label class="form-label" for="stock_id">Activo *</label>
+                    <select class="form-control" id="stock_id" name="stock_id" onchange="onStockSelect()" required>
+                        <option value="">Seleccionar activo existente...</option>
+                        {% for stock in stocks %}
+                        <option value="{{ stock.id }}" data-symbol="{{ stock.symbol }}"
+                            data-name="{{ stock.name or '' }}" data-type="{{ stock.stock_type }}"
+                            data-market="{{ stock.market }}">
+                            {{ stock.symbol }} - {{ stock.name or stock.symbol }} ({{ stock.stock_type|title }})
+                        </option>
+                        {% endfor %}
+                        <option value="new">➕ Agregar nuevo activo...</option>
+                    </select>
+                    <span class="form-hint">Selecciona un activo ya cargado o agrega uno nuevo</span>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label" for="name">Nombre (opcional)</label>
-                    <input type="text" class="form-control" id="name" name="name" placeholder="Ej: Galicia CEDEAR">
-                </div>
-
-                <div class="form-row">
+                <!-- Campos para nuevo activo (ocultos por defecto) -->
+                <div id="new-stock-fields" style="display: none;">
                     <div class="form-group">
-                        <label class="form-label" for="stock_type">Tipo</label>
-                        <select class="form-control" id="stock_type" name="stock_type">
-                            <option value="accion">Acción</option>
-                            <option value="bono">Bono</option>
-                            <option value="cedear">CEDEAR</option>
-                        </select>
+                        <label class="form-label" for="symbol">Símbolo/Código *</label>
+                        <input type="text" class="form-control" id="symbol" name="symbol"
+                            placeholder="Ej: GGAL, YPFD, AAPL" style="text-transform: uppercase;">
+                        <span class="form-hint">Código del activo (ticker)</span>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="market">Mercado</label>
-                        <select class="form-control" id="market" name="market">
-                            <option value="BCBA">BCBA (Argentina)</option>
-                            <option value="NYSE">NYSE</option>
-                            <option value="NASDAQ">NASDAQ</option>
-                        </select>
+                        <label class="form-label" for="name">Nombre (opcional)</label>
+                        <input type="text" class="form-control" id="name" name="name" placeholder="Ej: Galicia CEDEAR">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="stock_type">Tipo</label>
+                            <select class="form-control" id="stock_type" name="stock_type">
+                                <option value="accion">Acción</option>
+                                <option value="bono">Bono</option>
+                                <option value="cedear">CEDEAR</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="market">Mercado</label>
+                            <select class="form-control" id="market" name="market">
+                                <option value="BCBA">BCBA (Argentina)</option>
+                                <option value="NYSE">NYSE</option>
+                                <option value="NASDAQ">NASDAQ</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -110,29 +228,19 @@
         </div>
     </div>
 
-    <!-- Portfolio Description -->
+    <!-- Diversification Chart -->
     <div class="card">
         <div class="card-header">
-            <h3 class="card-title">Información</h3>
+            <h3 class="card-title">🥧 Diversificación</h3>
         </div>
         <div class="card-body">
-            {% if portfolio.description %}
-            <p>{{ portfolio.description }}</p>
+            {% if portfolio.stocks.count() > 0 %}
+            <canvas id="diversificationChart" height="250"></canvas>
             {% else %}
-            <p class="text-muted">Sin descripción.</p>
+            <div class="empty-state" style="padding: 2rem;">
+                <p class="text-muted">Agrega activos para ver la diversificación</p>
+            </div>
             {% endif %}
-
-            <div class="mt-3">
-                <strong class="text-muted" style="font-size: 0.75rem; text-transform: uppercase;">Broker</strong>
-                <p><a href="{{ url_for('broker_detail', broker_id=portfolio.broker.id) }}">{{ portfolio.broker.name
-                        }}</a></p>
-            </div>
-
-            <div class="mt-2">
-                <strong class="text-muted" style="font-size: 0.75rem; text-transform: uppercase;">Fecha de
-                    Creación</strong>
-                <p>{{ portfolio.created_at.strftime('%d/%m/%Y') }}</p>
-            </div>
         </div>
     </div>
 </div>
@@ -214,4 +322,190 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Stock selection handler for add asset form
+    function onStockSelect() {
+        const stockSelect = document.getElementById('stock_id');
+        const newStockFields = document.getElementById('new-stock-fields');
+        const symbolInput = document.getElementById('symbol');
+
+        if (stockSelect.value === 'new') {
+            newStockFields.style.display = 'block';
+            if (symbolInput) symbolInput.required = true;
+        } else {
+            newStockFields.style.display = 'none';
+            if (symbolInput) symbolInput.required = false;
+        }
+    }
+</script>
+<script>
+    // Fetch portfolio value history
+    fetch('/api/portfolio/{{ portfolio.id }}/value-history')
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Portfolio data:', data);
+
+            // Update KPIs
+            if (data.metrics) {
+                const m = data.metrics;
+
+                // Initial investment
+                document.getElementById('initial-investment').textContent =
+                    '$' + m.initial_investment.toLocaleString('es-AR', { minimumFractionDigits: 0 });
+
+                // Gain/Loss
+                const gainLossEl = document.getElementById('gain-loss');
+                const gainLossPctEl = document.getElementById('gain-loss-pct');
+                const statGainLoss = document.getElementById('stat-gainloss');
+
+                if (m.gain_loss >= 0) {
+                    gainLossEl.textContent = '+$' + m.gain_loss.toLocaleString('es-AR', { minimumFractionDigits: 0 });
+                    gainLossEl.className = 'stat-value text-success';
+                    gainLossPctEl.innerHTML = '<span class="text-success">+' + m.gain_loss_pct.toFixed(2) + '%</span>';
+                    statGainLoss.classList.add('success');
+                } else {
+                    gainLossEl.textContent = '-$' + Math.abs(m.gain_loss).toLocaleString('es-AR', { minimumFractionDigits: 0 });
+                    gainLossEl.className = 'stat-value text-danger';
+                    gainLossPctEl.innerHTML = '<span class="text-danger">' + m.gain_loss_pct.toFixed(2) + '%</span>';
+                    statGainLoss.classList.add('danger');
+                }
+
+                // Max/Min values
+                document.getElementById('max-value').textContent =
+                    '$' + m.max_value.toLocaleString('es-AR', { minimumFractionDigits: 0 });
+                document.getElementById('min-value').textContent =
+                    '$' + m.min_value.toLocaleString('es-AR', { minimumFractionDigits: 0 });
+            }
+
+            // Draw chart
+            const chartLoading = document.getElementById('chart-loading');
+            const chartCanvas = document.getElementById('portfolioChart');
+            const chartEmpty = document.getElementById('chart-empty');
+
+            if (data.values && data.values.length > 0) {
+                chartLoading.style.display = 'none';
+                chartCanvas.style.display = 'block';
+
+                const ctx = chartCanvas.getContext('2d');
+
+                // Determine color based on performance
+                const isPositive = data.values[data.values.length - 1] >= data.values[0];
+                const lineColor = isPositive ? '#10b981' : '#ef4444';
+                const bgColor = isPositive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.dates,
+                        datasets: [{
+                            label: 'Valor de Cartera',
+                            data: data.values,
+                            borderColor: lineColor,
+                            backgroundColor: bgColor,
+                            tension: 0.3,
+                            fill: true,
+                            pointRadius: 2,
+                            pointHoverRadius: 5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (context) {
+                                        return '$' + context.parsed.y.toLocaleString('es-AR');
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                ticks: {
+                                    callback: function (value) {
+                                        return '$' + value.toLocaleString('es-AR');
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                chartLoading.style.display = 'none';
+                chartEmpty.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching portfolio data:', error);
+            document.getElementById('chart-loading').innerHTML =
+                '<p class="text-danger">Error al cargar datos: ' + error.message + '</p>';
+            // Still try to set defaults
+            document.getElementById('initial-investment').textContent = '$0';
+            document.getElementById('gain-loss').textContent = '-';
+            document.getElementById('max-value').textContent = '-';
+            document.getElementById('min-value').textContent = '-';
+        });
+
+    // Diversification Chart
+    {% if portfolio.stocks.count() > 0 %}
+    const diversificationData = [
+        {% for ps in portfolio.stocks.all() %}
+    {
+        symbol: '{{ ps.stock.symbol }}',
+            value: {{ ps.current_value or 0 }}
+    },
+    {% endfor %}
+    ];
+
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1'];
+
+    const divCtx = document.getElementById('diversificationChart').getContext('2d');
+    new Chart(divCtx, {
+        type: 'doughnut',
+        data: {
+            labels: diversificationData.map(d => d.symbol),
+            datasets: [{
+                data: diversificationData.map(d => d.value),
+                backgroundColor: colors.slice(0, diversificationData.length),
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        boxWidth: 12,
+                        padding: 10
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function (context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct = ((context.parsed / total) * 100).toFixed(1);
+                            return context.label + ': $' + context.parsed.toLocaleString('es-AR') + ' (' + pct + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+</script>
 {% endblock %}
