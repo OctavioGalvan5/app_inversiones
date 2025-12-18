@@ -268,29 +268,37 @@ def broker_edit(broker_id):
 @login_required
 def broker_rate(broker_id):
     broker = Broker.query.get_or_404(broker_id)
-    category = request.form.get('category', 'general')
-    rating_value = int(request.form.get('rating'))
     
-    # Find existing rating for this user/broker/category
-    rating = BrokerRating.query.filter_by(
-        broker_id=broker_id, 
-        user_id=current_user.id,
-        category=category
-    ).first()
+    # Get all category ratings from form
+    categories = ['atencion', 'comisiones', 'plataforma', 'velocidad', 'variedad', 'general']
+    ratings_saved = 0
     
-    if rating:
-        rating.rating = rating_value
-    else:
-        rating = BrokerRating(
-            broker_id=broker_id, 
-            user_id=current_user.id, 
-            category=category,
-            rating=rating_value
-        )
-        db.session.add(rating)
+    for category in categories:
+        rating_value = request.form.get(f'rating_{category}')
+        if rating_value and int(rating_value) > 0:
+            rating_value = int(rating_value)
+            
+            # Find existing rating for this user/broker/category
+            rating = BrokerRating.query.filter_by(
+                broker_id=broker_id, 
+                user_id=current_user.id,
+                category=category
+            ).first()
+            
+            if rating:
+                rating.rating = rating_value
+            else:
+                rating = BrokerRating(
+                    broker_id=broker_id, 
+                    user_id=current_user.id, 
+                    category=category,
+                    rating=rating_value
+                )
+                db.session.add(rating)
+            ratings_saved += 1
     
     db.session.commit()
-    flash(f'Puntuacion de {category} guardada', 'success')
+    flash(f'{ratings_saved} puntuaciones guardadas', 'success')
     return redirect(url_for('broker_detail', broker_id=broker_id))
 
 
@@ -508,6 +516,53 @@ def portfolio_add_stock(portfolio_id):
     log_activity(current_user.id, 'create', 'portfolio_stock', portfolio_stock.id, f'{stock.symbol} en {portfolio.name}', {'quantity': quantity, 'price': purchase_price})
     
     flash(f'{stock.symbol} agregado a la cartera', 'success')
+    return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
+
+
+@app.route('/portfolios/<int:portfolio_id>/stocks/<int:ps_id>/edit', methods=['POST'])
+@login_required
+def portfolio_edit_stock(portfolio_id, ps_id):
+    """Edit a stock's quantity and purchase price in portfolio"""
+    ps = PortfolioStock.query.get_or_404(ps_id)
+    
+    if ps.portfolio_id != portfolio_id:
+        flash('Operación no permitida', 'error')
+        return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
+    
+    new_quantity = float(request.form.get('quantity', ps.quantity))
+    new_purchase_price = float(request.form.get('purchase_price', ps.purchase_price))
+    
+    old_qty = ps.quantity
+    old_price = ps.purchase_price
+    
+    ps.quantity = new_quantity
+    ps.purchase_price = new_purchase_price
+    db.session.commit()
+    
+    log_activity(current_user.id, 'update', 'portfolio_stock', ps.id, f'{ps.stock.symbol}', 
+                 {'old_qty': old_qty, 'new_qty': new_quantity, 'old_price': old_price, 'new_price': new_purchase_price})
+    
+    flash(f'{ps.stock.symbol} actualizado', 'success')
+    return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
+
+
+@app.route('/portfolios/<int:portfolio_id>/stocks/<int:ps_id>/remove', methods=['POST'])
+@login_required
+def portfolio_remove_stock(portfolio_id, ps_id):
+    """Remove a stock from portfolio"""
+    ps = PortfolioStock.query.get_or_404(ps_id)
+    
+    if ps.portfolio_id != portfolio_id:
+        flash('Operación no permitida', 'error')
+        return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
+    
+    symbol = ps.stock.symbol
+    db.session.delete(ps)
+    db.session.commit()
+    
+    log_activity(current_user.id, 'delete', 'portfolio_stock', ps_id, symbol)
+    
+    flash(f'{symbol} eliminado de la cartera', 'success')
     return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
 
 

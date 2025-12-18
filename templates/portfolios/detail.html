@@ -264,6 +264,7 @@
                         <th>P. Actual</th>
                         <th>Valor</th>
                         <th>Ganancia/Pérdida</th>
+                        <th style="width: 100px;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -303,6 +304,33 @@
                             {% else %}
                             <span class="text-muted">-</span>
                             {% endif %}
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: 0.25rem;">
+                                <button type="button" class="btn btn-sm btn-secondary"
+                                    onclick="openEditModal({{ ps.id }}, '{{ ps.stock.symbol }}', {{ ps.quantity }}, {{ ps.purchase_price }})"
+                                    title="Editar">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                    </svg>
+                                </button>
+                                <form method="POST"
+                                    action="{{ url_for('portfolio_remove_stock', portfolio_id=portfolio.id, ps_id=ps.id) }}"
+                                    onsubmit="return confirm('¿Eliminar {{ ps.stock.symbol }} de la cartera?');"
+                                    style="display: inline;">
+                                    <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                            <path
+                                                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                            </path>
+                                        </svg>
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -381,11 +409,61 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Edit Stock Modal -->
+<div id="editStockModal" class="modal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="modal-content"
+        style="background: #ffffff; max-width: 400px; width: 90%; margin: 0 auto; padding: 1.5rem; border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); position: relative; top: 50%; transform: translateY(-50%);">
+        <h3 style="margin-bottom: 1rem; color: #1a365d;">✏️ Editar <span id="editStockSymbol"
+                style="color: #3b82f6;"></span></h3>
+        <form id="editStockForm" method="POST">
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label"
+                    style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Cantidad</label>
+                <input type="number" step="0.01" min="0" class="form-control" name="quantity" id="editQuantity" required
+                    style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem;">
+            </div>
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label"
+                    style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Precio de
+                    Compra</label>
+                <input type="number" step="0.01" min="0" class="form-control" name="purchase_price"
+                    id="editPurchasePrice" required
+                    style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem;">
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary"
+                    style="flex: 1; padding: 0.75rem; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Guardar</button>
+                <button type="button" onclick="closeEditModal()"
+                    style="flex: 1; padding: 0.75rem; background: #e5e7eb; color: #374151; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // Edit modal functions
+    function openEditModal(psId, symbol, quantity, purchasePrice) {
+        document.getElementById('editStockSymbol').textContent = symbol;
+        document.getElementById('editQuantity').value = quantity;
+        document.getElementById('editPurchasePrice').value = purchasePrice;
+        document.getElementById('editStockForm').action = '/portfolios/{{ portfolio.id }}/stocks/' + psId + '/edit';
+        document.getElementById('editStockModal').style.display = 'block';
+    }
+
+    function closeEditModal() {
+        document.getElementById('editStockModal').style.display = 'none';
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('editStockModal').addEventListener('click', function (e) {
+        if (e.target === this) closeEditModal();
+    });
+
     // Stock selection handler for add asset form
     function onStockSelect() {
         const stockSelect = document.getElementById('stock_id');

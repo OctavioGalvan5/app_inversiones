@@ -113,14 +113,12 @@
     </div>
     <div class="card-body">
         {% set user_ratings = broker.get_user_ratings(current_user.id) %}
-        <div class="rating-categories-grid"
-            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
-            {% for cat_id, cat_name in broker.RATING_CATEGORIES %}
-            <div class="rating-category-card"
-                style="background: var(--bg-secondary); padding: 1.25rem; border-radius: var(--radius-md);">
-                <form method="POST" action="{{ url_for('broker_rate', broker_id=broker.id) }}">
-                    <input type="hidden" name="category" value="{{ cat_id }}">
-
+        <form method="POST" action="{{ url_for('broker_rate', broker_id=broker.id) }}">
+            <div class="rating-categories-grid"
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+                {% for cat_id, cat_name in broker.RATING_CATEGORIES %}
+                <div class="rating-category-card"
+                    style="background: var(--bg-secondary); padding: 1.25rem; border-radius: var(--radius-md);">
                     <div
                         style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
                         <strong>{{ cat_name }}</strong>
@@ -129,22 +127,31 @@
                         {% endif %}
                     </div>
 
-                    <div class="star-rating" style="font-size: 1.75rem; margin-bottom: 0.75rem;"
+                    <div class="star-rating" style="font-size: 1.75rem; margin-bottom: 0.5rem;"
                         data-category="{{ cat_id }}">
                         {% for i in range(1, 6) %}
                         <span class="star {% if user_ratings.get(cat_id, 0) >= i %}active{% endif %}"
                             data-value="{{ i }}">★</span>
                         {% endfor %}
-                        <input type="hidden" name="rating" value="{{ user_ratings.get(cat_id, 0) }}">
+                        <input type="hidden" name="rating_{{ cat_id }}" value="{{ user_ratings.get(cat_id, 0) }}">
                     </div>
-
-                    <button type="submit" class="btn btn-sm btn-primary" style="width: 100%;">
-                        {{ 'Actualizar' if user_ratings.get(cat_id) else 'Guardar' }}
-                    </button>
-                </form>
+                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
-        </div>
+
+            <div style="margin-top: 1.5rem; display: flex; justify-content: center;">
+                <button type="submit" class="btn btn-primary" style="padding: 0.75rem 3rem; font-size: 1rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2"
+                        style="display: inline; margin-right: 8px; vertical-align: middle;">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
+                    Guardar Todas las Puntuaciones
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -213,7 +220,8 @@
     // Interactive star rating for all categories
     document.querySelectorAll('.star-rating').forEach(ratingGroup => {
         const stars = ratingGroup.querySelectorAll('.star');
-        const input = ratingGroup.querySelector('input[name="rating"]');
+        const category = ratingGroup.dataset.category;
+        const input = ratingGroup.querySelector(`input[name="rating_${category}"]`);
 
         stars.forEach(star => {
             star.addEventListener('click', function () {
