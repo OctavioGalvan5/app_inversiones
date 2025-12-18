@@ -1,9 +1,10 @@
-from flask import Flask, render_template, redirect, url_for, flash, request, jsonify
+from flask import Flask, render_template, redirect, url_for, flash, request, jsonify, send_file
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_apscheduler import APScheduler
 from config import Config
-from models import db, User, Broker, BrokerRating, Investment, Portfolio, Stock, PortfolioStock, PriceHistory, Message
+from models import db, User, Broker, BrokerRating, Investment, Portfolio, Stock, PortfolioStock, PriceHistory, Message, ActivityLog
 from datetime import datetime, date
+from report_service import log_activity, get_activities, get_messages, generate_activities_pdf, generate_activities_excel, generate_messages_pdf, generate_messages_excel
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -217,6 +218,7 @@ def broker_new():
         )
         db.session.add(broker)
         db.session.commit()
+        log_activity(current_user.id, 'create', 'broker', broker.id, broker.name)
         flash('Broker creado exitosamente', 'success')
         return redirect(url_for('broker_detail', broker_id=broker.id))
     
@@ -245,6 +247,7 @@ def broker_edit(broker_id):
         broker.email = request.form.get('email')
         broker.commission_rate = float(request.form.get('commission_rate') or 0)
         db.session.commit()
+        log_activity(current_user.id, 'update', 'broker', broker.id, broker.name)
         flash('Broker actualizado exitosamente', 'success')
         return redirect(url_for('broker_detail', broker_id=broker.id))
     
@@ -294,6 +297,8 @@ def broker_message(broker_id):
         )
         db.session.add(message)
         db.session.commit()
+        broker = Broker.query.get(broker_id)
+        log_activity(current_user.id, 'create', 'message', message.id, f'Mensaje en Broker', {'broker': broker.name if broker else 'N/A'})
         flash('Mensaje agregado', 'success')
     return redirect(url_for('broker_detail', broker_id=broker_id))
 
@@ -345,6 +350,7 @@ def investment_new():
         )
         db.session.add(investment)
         db.session.commit()
+        log_activity(current_user.id, 'create', 'investment', investment.id, investment.name, {'type': investment.investment_type, 'amount': investment.amount})
         flash('Inversión creada exitosamente', 'success')
         return redirect(url_for('investment_detail', investment_id=investment.id))
     
@@ -382,6 +388,7 @@ def investment_edit(investment_id):
             investment.broker_id = request.form.get('broker_id')
         
         db.session.commit()
+        log_activity(current_user.id, 'update', 'investment', investment.id, investment.name)
         flash('Inversión actualizada exitosamente', 'success')
         return redirect(url_for('investment_detail', investment_id=investment.id))
     
@@ -402,6 +409,8 @@ def investment_message(investment_id):
         )
         db.session.add(message)
         db.session.commit()
+        investment = Investment.query.get(investment_id)
+        log_activity(current_user.id, 'create', 'message', message.id, f'Mensaje en Inversión', {'inversión': investment.name if investment else 'N/A'})
         flash('Mensaje agregado', 'success')
     return redirect(url_for('investment_detail', investment_id=investment_id))
 
@@ -426,6 +435,7 @@ def portfolio_new():
         )
         db.session.add(portfolio)
         db.session.commit()
+        log_activity(current_user.id, 'create', 'portfolio', portfolio.id, portfolio.name)
         flash('Cartera creada exitosamente', 'success')
         return redirect(url_for('portfolio_detail', portfolio_id=portfolio.id))
     
@@ -485,6 +495,7 @@ def portfolio_add_stock(portfolio_id):
     )
     db.session.add(portfolio_stock)
     db.session.commit()
+    log_activity(current_user.id, 'create', 'portfolio_stock', portfolio_stock.id, f'{stock.symbol} en {portfolio.name}', {'quantity': quantity, 'price': purchase_price})
     
     flash(f'{stock.symbol} agregado a la cartera', 'success')
     return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
@@ -503,6 +514,8 @@ def portfolio_add_message(portfolio_id):
         )
         db.session.add(message)
         db.session.commit()
+        portfolio = Portfolio.query.get(portfolio_id)
+        log_activity(current_user.id, 'create', 'message', message.id, f'Mensaje en Cartera', {'cartera': portfolio.name if portfolio else 'N/A'})
         flash('Mensaje agregado', 'success')
     return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
 
@@ -544,6 +557,7 @@ def stocks_add_custom():
     )
     db.session.add(stock)
     db.session.commit()
+    log_activity(current_user.id, 'create', 'stock', stock.id, stock.symbol, {'type': stock_type})
     
     # Try to get price from IOL
     from iol_service import iol_service
@@ -581,6 +595,7 @@ def stock_delete(stock_id):
     # Delete the stock
     db.session.delete(stock)
     db.session.commit()
+    log_activity(current_user.id, 'delete', 'stock', stock_id, symbol)
     
     flash(f'{symbol} eliminado', 'success')
     return redirect(url_for('stocks_list'))
@@ -880,6 +895,96 @@ def api_portfolio_performance(portfolio_id):
         })
     
     return jsonify(performance)
+
+
+# ==================== REPORTS ====================
+
+@app.route('/reports/activities/pdf')
+@login_required
+def report_activities_pdf():
+    """Download activities report as PDF"""
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    start_dt = datetime.strptime(start_date, '%Y-%m-%d').date() if start_date else None
+    end_dt = datetime.strptime(end_date, '%Y-%m-%d').date() if end_date else None
+    
+    activities = get_activities(start_dt, end_dt)
+    pdf_buffer = generate_activities_pdf(activities, start_dt, end_dt)
+    
+    filename = f"reporte_movimientos_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    return send_file(
+        pdf_buffer,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+@app.route('/reports/activities/excel')
+@login_required
+def report_activities_excel():
+    """Download activities report as Excel"""
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    start_dt = datetime.strptime(start_date, '%Y-%m-%d').date() if start_date else None
+    end_dt = datetime.strptime(end_date, '%Y-%m-%d').date() if end_date else None
+    
+    activities = get_activities(start_dt, end_dt)
+    excel_buffer = generate_activities_excel(activities, start_dt, end_dt)
+    
+    filename = f"reporte_movimientos_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    return send_file(
+        excel_buffer,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+@app.route('/reports/messages/pdf')
+@login_required
+def report_messages_pdf():
+    """Download messages report as PDF"""
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    start_dt = datetime.strptime(start_date, '%Y-%m-%d').date() if start_date else None
+    end_dt = datetime.strptime(end_date, '%Y-%m-%d').date() if end_date else None
+    
+    messages = get_messages(start_dt, end_dt)
+    pdf_buffer = generate_messages_pdf(messages, start_dt, end_dt)
+    
+    filename = f"reporte_mensajes_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    return send_file(
+        pdf_buffer,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+@app.route('/reports/messages/excel')
+@login_required
+def report_messages_excel():
+    """Download messages report as Excel"""
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    start_dt = datetime.strptime(start_date, '%Y-%m-%d').date() if start_date else None
+    end_dt = datetime.strptime(end_date, '%Y-%m-%d').date() if end_date else None
+    
+    messages = get_messages(start_dt, end_dt)
+    excel_buffer = generate_messages_excel(messages, start_dt, end_dt)
+    
+    filename = f"reporte_mensajes_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    return send_file(
+        excel_buffer,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
 
 
 # ==================== INIT DB ====================

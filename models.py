@@ -255,3 +255,23 @@ class Message(db.Model):
     
     def __repr__(self):
         return f'<Message {self.id}>'
+
+
+class ActivityLog(db.Model):
+    """Log of all user activities for reporting purposes"""
+    __tablename__ = 'activity_logs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    action_type = db.Column(db.String(50), nullable=False)  # create, update, delete
+    entity_type = db.Column(db.String(50), nullable=False)  # broker, portfolio, investment, stock, message
+    entity_id = db.Column(db.Integer)
+    entity_name = db.Column(db.String(200))  # Name/description of the entity
+    details = db.Column(db.Text)  # JSON with additional details
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    user = db.relationship('User', backref='activity_logs')
+    
+    def __repr__(self):
+        return f'<ActivityLog {self.id} - {self.action_type} {self.entity_type}>'
