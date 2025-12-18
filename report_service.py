@@ -340,7 +340,11 @@ def generate_activities_pdf(activities, start_date=None, end_date=None):
                             'amount': 'Monto',
                             'broker_id': 'Broker ID',
                             'investment_id': 'Inversión ID',
-                            'portfolio_id': 'Cartera ID'
+                            'portfolio_id': 'Cartera ID',
+                            # New Spanish field names
+                            'broker': 'Broker',
+                            'inversión': 'Inversión',
+                            'cartera': 'Cartera'
                         }
                         field_name = field_translations.get(k, k.replace('_', ' ').title())
                         

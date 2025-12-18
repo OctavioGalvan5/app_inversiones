@@ -209,7 +209,7 @@
                     <div class="message-content">
                         <div class="message-header">
                             <span class="message-author">{{ msg.author.full_name or msg.author.username }}</span>
-                            <span class="message-time">{{ msg.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                            <span class="message-time">{{ msg.created_at|to_ar }}</span>
                         </div>
                         <p class="message-text">{{ msg.content }}</p>
                         {% if msg.broker_id %}
@@ -378,6 +378,39 @@
                             </button>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Executive Report - Full Width -->
+            <div
+                style="margin-top: 1rem; padding: 1rem; background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%); border-radius: 12px; color: white;">
+                <div
+                    style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <h4
+                            style="margin: 0 0 0.5rem 0; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+                                <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+                            </svg>
+                            Reporte Ejecutivo de Inversiones
+                        </h4>
+                        <p style="margin: 0; font-size: 0.85rem; opacity: 0.9;">
+                            Resumen completo: carteras, brokers, inversiones, gráficos y análisis para toma de
+                            decisiones
+                        </p>
+                    </div>
+                    <a href="{{ url_for('report_executive_pdf') }}" class="btn"
+                        style="background: white; color: #1a365d; font-weight: 600; padding: 0.75rem 1.5rem; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Descargar PDF
+                    </a>
                 </div>
             </div>
         </form>

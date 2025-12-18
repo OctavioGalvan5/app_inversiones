@@ -4,7 +4,7 @@ from flask_apscheduler import APScheduler
 from config import Config
 from models import db, User, Broker, BrokerRating, Investment, Portfolio, Stock, PortfolioStock, PriceHistory, Message, ActivityLog
 from datetime import datetime, date
-from report_service import log_activity, get_activities, get_messages, generate_activities_pdf, generate_activities_excel, generate_messages_pdf, generate_messages_excel
+from report_service import log_activity, get_activities, get_messages, generate_activities_pdf, generate_activities_excel, generate_messages_pdf, generate_messages_excel, to_buenos_aires, format_datetime_ar
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -13,6 +13,16 @@ app.config.from_object(Config)
 app.config['SCHEDULER_API_ENABLED'] = True
 
 db.init_app(app)
+
+# Register Jinja2 filter for Argentina timezone conversion
+def to_ar_filter(dt):
+    """Convert datetime to Argentina timezone and format it"""
+    if dt is None:
+        return '-'
+    dt_ar = to_buenos_aires(dt)
+    return dt_ar.strftime('%d/%m/%Y %H:%M')
+
+app.jinja_env.filters['to_ar'] = to_ar_filter
 
 # Initialize scheduler
 scheduler = APScheduler()
@@ -982,6 +992,23 @@ def report_messages_excel():
     return send_file(
         excel_buffer,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+@app.route('/reports/executive/pdf')
+@login_required
+def report_executive_pdf():
+    """Download comprehensive executive investment report as PDF"""
+    from executive_report_service import generate_executive_report_pdf
+    
+    pdf_buffer = generate_executive_report_pdf()
+    
+    filename = f"reporte_ejecutivo_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    return send_file(
+        pdf_buffer,
+        mimetype='application/pdf',
         as_attachment=True,
         download_name=filename
     )
