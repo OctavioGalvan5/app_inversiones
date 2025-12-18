@@ -438,7 +438,8 @@ def portfolio_new():
 def portfolio_detail(portfolio_id):
     portfolio = Portfolio.query.get_or_404(portfolio_id)
     stocks = Stock.query.order_by(Stock.symbol).all()
-    return render_template('portfolios/detail.html', portfolio=portfolio, stocks=stocks)
+    messages = Message.query.filter_by(portfolio_id=portfolio_id).order_by(Message.created_at.desc()).all()
+    return render_template('portfolios/detail.html', portfolio=portfolio, stocks=stocks, messages=messages)
 
 
 @app.route('/portfolios/<int:portfolio_id>/add-stock', methods=['POST'])
