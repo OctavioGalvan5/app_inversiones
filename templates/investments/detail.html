@@ -156,7 +156,13 @@
     </div>
     <div class="card-body">
         <!-- Add Message Form -->
-        <form method="POST" action="{{ url_for('investment_message', investment_id=investment.id) }}" class="mb-3">
+        <form method="POST" action="{{ url_for('investment_message', investment_id=investment.id) }}" class="mb-3"
+            id="messageForm">
+            <input type="hidden" name="parent_id" id="parent_id_input">
+            <div id="replying-to-label"
+                style="display: none; padding: 5px 10px; background: var(--bg-secondary); border-left: 3px solid var(--primary); margin-bottom: 5px; font-size: 0.9em; border-radius: 4px;">
+            </div>
+
             <div class="form-group mb-2">
                 <textarea class="form-control" name="content"
                     placeholder="Escribe un comentario sobre esta inversión..." rows="3" required></textarea>
@@ -172,32 +178,12 @@
         </form>
 
         <!-- Messages List -->
-        {% if messages %}
         <div class="message-list">
-            {% for msg in messages %}
-            <div class="message-item">
-                <div class="message-avatar">{{ msg.author.full_name[0] if msg.author.full_name else
-                    msg.author.username[0]|upper }}</div>
-                <div class="message-content">
-                    <div class="message-header">
-                        <span class="message-author">{{ msg.author.full_name or msg.author.username }}</span>
-                        <span class="message-time">{{ msg.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
-                    </div>
-                    <p class="message-text">{{ msg.content }}</p>
-                </div>
-            </div>
-            {% endfor %}
+            {% from 'includes/message_thread_macro.html' import render_messages, render_message_scripts with context %}
+            {{ render_messages(messages) }}
         </div>
-        {% else %}
-        <div class="empty-state" style="padding: 2rem;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="1.5">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-            <h3>Sin comentarios</h3>
-            <p>Sé el primero en dejar un comentario sobre esta inversión</p>
-        </div>
-        {% endif %}
     </div>
 </div>
+
+{{ render_message_scripts() }}
 {% endblock %}

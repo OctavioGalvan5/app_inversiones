@@ -1,0 +1,68 @@
+{% macro render_messages(messages, level=0) %}
+{% for message in messages %}
+<div class="message-card"
+    style="margin-left: {{ level * 20 }}px; border-left: {{ '2px solid var(--border-color)' if level > 0 else 'none' }}; padding-left: {{ '15px' if level > 0 else '0' }};">
+    <div class="message-header" style="justify-content: space-between; display: flex;">
+        <div class="message-author">
+            <span class="author-name" style="font-weight: 600;">{{ message.author.full_name or message.author.username
+                }}</span>
+            <span class="message-date" style="color: var(--text-secondary); font-size: 0.8em; margin-left: 10px;">{{
+                message.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+        </div>
+        {% if current_user.id != message.author_id %}
+        <button class="btn btn-sm btn-ghost reply-btn"
+            onclick="replyToMessage('{{ message.id }}', '{{ message.author.full_name or message.author.username }}')">
+            Responder
+        </button>
+        {% endif %}
+    </div>
+    <div class="message-content" style="margin-top: 5px;">
+        {{ message.content }}
+    </div>
+
+    <!-- Render replies -->
+    {% if message.replies.count() > 0 %}
+    <div class="replies" style="margin-top: 10px;">
+        {{ render_messages(message.replies, level + 1) }}
+    </div>
+    {% endif %}
+</div>
+{% else %}
+{% if level == 0 %}
+<p class="text-muted text-center">No hay mensajes aún.</p>
+{% endif %}
+{% endfor %}
+{% endmacro %}
+
+{% macro render_message_scripts() %}
+<script>
+    function replyToMessage(id, author) {
+        const form = document.getElementById('messageForm');
+        const input = document.getElementById('parent_id_input');
+        const textarea = form.querySelector('textarea');
+        const label = document.getElementById('replying-to-label');
+
+        input.value = id;
+        textarea.focus();
+        textarea.placeholder = `Respondiendo a ${author}...`;
+
+        if (label) {
+            label.style.display = 'block';
+            label.innerHTML = `Respondiendo a <strong>${author}</strong> <a href="javascript:void(0)" onclick="cancelReply()" style="float: right; color: var(--text-secondary);">&times;</a>`;
+        }
+    }
+
+    function cancelReply() {
+        const input = document.getElementById('parent_id_input');
+        const form = document.getElementById('messageForm');
+        const textarea = form.querySelector('textarea');
+        const label = document.getElementById('replying-to-label');
+
+        input.value = '';
+        textarea.placeholder = 'Escribe un mensaje...';
+        if (label) {
+            label.style.display = 'none';
+        }
+    }
+</script>
+{% endmacro %}

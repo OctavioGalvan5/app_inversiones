@@ -15,6 +15,7 @@ class User(UserMixin, db.Model):
     full_name = db.Column(db.String(150))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_admin = db.Column(db.Boolean, default=False)
+    last_notification_read_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
     ratings = db.relationship('BrokerRating', backref='user', lazy='dynamic')
@@ -248,10 +249,15 @@ class Message(db.Model):
     investment_id = db.Column(db.Integer, db.ForeignKey('investments.id'))
     portfolio_id = db.Column(db.Integer, db.ForeignKey('portfolios.id'))
     message_type = db.Column(db.String(20), default='general')  # general, broker, investment, portfolio
+    parent_id = db.Column(db.Integer, db.ForeignKey('messages.id', ondelete='CASCADE'))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
     portfolio = db.relationship('Portfolio', backref='messages')
+    replies = db.relationship('Message', 
+                            backref=db.backref('parent', remote_side=[id]),
+                            lazy='dynamic',
+                            cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<Message {self.id}>'

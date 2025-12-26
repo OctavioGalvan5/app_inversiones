@@ -103,6 +103,59 @@ def index():
     return redirect(url_for('login'))
 
 
+@app.context_processor
+def inject_notifications():
+    if current_user.is_authenticated:
+        # Count messages created after last_notification_read_at
+        last_read = current_user.last_notification_read_at or datetime.min
+        unread_count = Message.query.filter(Message.created_at > last_read).count()
+        return dict(unread_notifications_count=unread_count)
+    return dict(unread_notifications_count=0)
+
+
+@app.route('/api/notifications/mark-read', methods=['POST'])
+@login_required
+def mark_notifications_read():
+    current_user.last_notification_read_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({'status': 'success'})
+
+
+@app.route('/api/notifications/unread')
+@login_required
+def get_unread_notifications():
+    last_read = current_user.last_notification_read_at or datetime.min
+    messages = Message.query.filter(Message.created_at > last_read).order_by(Message.created_at.desc()).limit(5).all()
+    
+    notifications = []
+    for msg in messages:
+        url = '#'
+        context = 'General'
+        
+        if msg.broker_id:
+            url = url_for('broker_detail', broker_id=msg.broker_id)
+            context = f"Broker: {msg.broker.name}"
+        elif msg.investment_id:
+            url = url_for('investment_detail', investment_id=msg.investment_id)
+            context = f"Inversión: {msg.investment.name}"
+        elif msg.portfolio_id:
+            url = url_for('portfolio_detail', portfolio_id=msg.portfolio_id)
+            context = f"Cartera: {msg.portfolio.name}"
+            
+        if msg.parent_id:
+             context = f"Respuesta en {context}"
+
+        notifications.append({
+            'author': msg.author.full_name or msg.author.username,
+            'content': msg.content[:60] + '...' if len(msg.content) > 60 else msg.content,
+            'time': msg.created_at.strftime('%d/%m %H:%M'),
+            'url': url,
+            'context': context
+        })
+        
+    return jsonify(notifications)
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -240,7 +293,7 @@ def broker_new():
 def broker_detail(broker_id):
     broker = Broker.query.get_or_404(broker_id)
     user_rating = BrokerRating.query.filter_by(broker_id=broker_id, user_id=current_user.id).first()
-    messages = Message.query.filter_by(broker_id=broker_id).order_by(Message.created_at.desc()).all()
+    messages = Message.query.filter_by(broker_id=broker_id, parent_id=None).order_by(Message.created_at.desc()).all()
     return render_template('brokers/detail.html', broker=broker, user_rating=user_rating, messages=messages)
 
 
@@ -306,17 +359,21 @@ def broker_rate(broker_id):
 @login_required
 def broker_message(broker_id):
     content = request.form.get('content')
+    parent_id = request.form.get('parent_id')
+    
     if content:
         message = Message(
             content=content,
             author_id=current_user.id,
             broker_id=broker_id,
-            message_type='broker'
+            message_type='broker',
+            parent_id=parent_id if parent_id else None
         )
         db.session.add(message)
         db.session.commit()
         broker = Broker.query.get(broker_id)
-        log_activity(current_user.id, 'create', 'message', message.id, f'Mensaje en Broker', {'broker': broker.name if broker else 'N/A'})
+        action = 'reply' if parent_id else 'create'
+        log_activity(current_user.id, action, 'message', message.id, f'Mensaje en Broker', {'broker': broker.name if broker else 'N/A'})
         flash('Mensaje agregado', 'success')
     return redirect(url_for('broker_detail', broker_id=broker_id))
 
@@ -380,7 +437,7 @@ def investment_new():
 @login_required
 def investment_detail(investment_id):
     investment = Investment.query.get_or_404(investment_id)
-    messages = Message.query.filter_by(investment_id=investment_id).order_by(Message.created_at.desc()).all()
+    messages = Message.query.filter_by(investment_id=investment_id, parent_id=None).order_by(Message.created_at.desc()).all()
     return render_template('investments/detail.html', investment=investment, messages=messages)
 
 
@@ -418,17 +475,21 @@ def investment_edit(investment_id):
 @login_required
 def investment_message(investment_id):
     content = request.form.get('content')
+    parent_id = request.form.get('parent_id')
+    
     if content:
         message = Message(
             content=content,
             author_id=current_user.id,
             investment_id=investment_id,
-            message_type='investment'
+            message_type='investment',
+            parent_id=parent_id if parent_id else None
         )
         db.session.add(message)
         db.session.commit()
         investment = Investment.query.get(investment_id)
-        log_activity(current_user.id, 'create', 'message', message.id, f'Mensaje en Inversión', {'inversión': investment.name if investment else 'N/A'})
+        action = 'reply' if parent_id else 'create'
+        log_activity(current_user.id, action, 'message', message.id, f'Mensaje en Inversión', {'inversión': investment.name if investment else 'N/A'})
         flash('Mensaje agregado', 'success')
     return redirect(url_for('investment_detail', investment_id=investment_id))
 
@@ -466,7 +527,7 @@ def portfolio_new():
 def portfolio_detail(portfolio_id):
     portfolio = Portfolio.query.get_or_404(portfolio_id)
     stocks = Stock.query.order_by(Stock.symbol).all()
-    messages = Message.query.filter_by(portfolio_id=portfolio_id).order_by(Message.created_at.desc()).all()
+    messages = Message.query.filter_by(portfolio_id=portfolio_id, parent_id=None).order_by(Message.created_at.desc()).all()
     return render_template('portfolios/detail.html', portfolio=portfolio, stocks=stocks, messages=messages)
 
 
@@ -570,17 +631,21 @@ def portfolio_remove_stock(portfolio_id, ps_id):
 @login_required
 def portfolio_add_message(portfolio_id):
     content = request.form.get('content')
+    parent_id = request.form.get('parent_id')
+    
     if content:
         message = Message(
             content=content,
             author_id=current_user.id,
             portfolio_id=portfolio_id,
-            message_type='portfolio'
+            message_type='portfolio',
+            parent_id=parent_id if parent_id else None
         )
         db.session.add(message)
         db.session.commit()
         portfolio = Portfolio.query.get(portfolio_id)
-        log_activity(current_user.id, 'create', 'message', message.id, f'Mensaje en Cartera', {'cartera': portfolio.name if portfolio else 'N/A'})
+        action = 'reply' if parent_id else 'create'
+        log_activity(current_user.id, action, 'message', message.id, f'Mensaje en Cartera', {'cartera': portfolio.name if portfolio else 'N/A'})
         flash('Mensaje agregado', 'success')
     return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
 

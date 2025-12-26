@@ -133,8 +133,15 @@
 
 <!-- Price History Chart -->
 <div class="card mt-3">
-    <div class="card-header">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
         <h3 class="card-title">Evolucion de Precios (Ultimos 30 dias)</h3>
+        <select id="assetFilter" class="form-control"
+            style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.875rem;">
+            <option value="all">Ver Todos</option>
+            {% for stock in stocks %}
+            <option value="{{ stock.symbol }}">{{ stock.symbol }}</option>
+            {% endfor %}
+        </select>
     </div>
     <div class="card-body">
         <canvas id="priceChart" height="300"></canvas>
@@ -198,9 +205,13 @@
 
     // Price Chart
     {% if stocks %}
+    let priceChartInstance = null;
+    let allPriceData = null;
+
     fetch('/api/stocks/price-history')
         .then(response => response.json())
         .then(data => {
+            allPriceData = data;
             const ctx = document.getElementById('priceChart').getContext('2d');
 
             if (Object.keys(data).length === 0) {
@@ -208,36 +219,71 @@
                 return;
             }
 
-            const datasets = Object.keys(data).map((symbol, idx) => {
+            renderChart('all');
+        });
+
+    function renderChart(filterSymbol) {
+        const ctx = document.getElementById('priceChart').getContext('2d');
+
+        // Destroy existing chart if it exists
+        if (priceChartInstance) {
+            priceChartInstance.destroy();
+        }
+
+        let datasets = [];
+        let labels = [];
+
+        if (filterSymbol === 'all') {
+            // Create datasets for all symbols
+            datasets = Object.keys(allPriceData).map((symbol, idx) => {
                 const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
                 return {
                     label: symbol,
-                    data: data[symbol].map(p => p.price),
+                    data: allPriceData[symbol].map(p => p.price),
                     borderColor: colors[idx % colors.length],
                     backgroundColor: 'transparent',
                     tension: 0.3
                 };
             });
+            // Get labels from first dataset (assuming date consistency)
+            const firstSymbol = Object.keys(allPriceData)[0];
+            labels = allPriceData[firstSymbol].map(p => p.date);
 
-            // Get labels from first dataset
-            const firstSymbol = Object.keys(data)[0];
-            const labels = data[firstSymbol].map(p => p.date);
+        } else if (allPriceData[filterSymbol]) {
+            // Create dataset for single symbol
+            datasets = [{
+                label: filterSymbol,
+                data: allPriceData[filterSymbol].map(p => p.price),
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                fill: true,
+                tension: 0.3
+            }];
+            labels = allPriceData[filterSymbol].map(p => p.date);
+        }
 
-            new Chart(ctx, {
-                type: 'line',
-                data: { labels, datasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: { beginAtZero: false }
-                    },
-                    plugins: {
-                        legend: { position: 'top' }
-                    }
+        priceChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: false }
+                },
+                plugins: {
+                    legend: { position: 'top' }
                 }
-            });
+            }
         });
+    }
+
+    // Listener for dropdown change
+    document.getElementById('assetFilter').addEventListener('change', function (e) {
+        if (allPriceData) {
+            renderChart(e.target.value);
+        }
+    });
     {% endif %}
 </script>
 {% endblock %}

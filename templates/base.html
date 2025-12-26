@@ -127,6 +127,34 @@
 
                 <div class="header-actions">
                     <div class="user-menu">
+                        <div class="notification-wrapper"
+                            style="position: relative; margin-right: 15px; cursor: pointer;">
+                            <div onclick="toggleNotifications()">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                </svg>
+                                {% if unread_notifications_count > 0 %}
+                                <span class="notification-badge" id="notification-badge"
+                                    style="position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                                    {{ unread_notifications_count }}
+                                </span>
+                                {% endif %}
+                            </div>
+                            <!-- Dropdown -->
+                            <div id="notification-dropdown"
+                                style="display: none; position: absolute; top: 100%; right: 0; width: 300px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; overflow: hidden; margin-top: 10px;">
+                                <div class="dropdown-header"
+                                    style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: 600; background: #f8fafc; color: #1e293b;">
+                                    Notificaciones Nuevas</div>
+                                <div id="notification-list" style="max-height: 300px; overflow-y: auto;">
+                                    <!-- Items will be injected here -->
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="user-avatar">{{ current_user.full_name[0] if current_user.full_name else
                             current_user.username[0]|upper }}</div>
                         <span class="user-name">{{ current_user.full_name or current_user.username }}</span>
@@ -225,6 +253,79 @@
         });
     </script>
 
+    <script>
+        function toggleNotifications() {
+            const dropdown = document.getElementById('notification-dropdown');
+            const overlay = document.getElementById('notification-overlay');
+            const isOpen = dropdown.style.display === 'block';
+
+            if (isOpen) {
+                dropdown.style.display = 'none';
+                if (overlay) overlay.style.display = 'none';
+            } else {
+                // Fetch notifications before showing
+                fetch('/api/notifications/unread')
+                    .then(response => response.json())
+                    .then(data => {
+                        const list = document.getElementById('notification-list');
+                        if (data.length === 0) {
+                            list.innerHTML = '<div class="notification-item" style="text-align: center; color: var(--text-secondary);">No hay notificaciones nuevas</div>';
+                        } else {
+                            list.innerHTML = data.map(msg => `
+                                <a href="${msg.url}" class="notification-item" style="display: block; padding: 10px; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;">
+                                    <div style="font-size: 0.85rem; font-weight: 600; display: flex; justify-content: space-between;">
+                                        <span>${msg.author}</span>
+                                        <span style="font-weight: 400; color: var(--text-secondary); font-size: 0.75rem;">${msg.time}</span>
+                                    </div>
+                                    <div style="font-size: 0.75rem; color: var(--primary); font-weight: 500; margin-top: 2px;">${msg.context}</div>
+                                    <div style="font-size: 0.9rem; margin-top: 4px; color: var(--text-primary);">${msg.content}</div>
+                                </a>
+                            `).join('');
+                            // Add "Mark all as read" button
+                            list.innerHTML += `
+                                <div style="padding: 10px; text-align: center;">
+                                    <button class="btn btn-sm btn-ghost" onclick="markNotificationsRead()">Marcar como leídas</button>
+                                </div>
+                            `;
+                        }
+
+                        dropdown.style.display = 'block';
+                        if (overlay) overlay.style.display = 'block';
+                    });
+            }
+        }
+
+        function markNotificationsRead() {
+            fetch('/api/notifications/mark-read', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const badge = document.getElementById('notification-badge');
+                        if (badge) badge.style.display = 'none';
+
+                        // Close dropdown
+                        const dropdown = document.getElementById('notification-dropdown');
+                        if (dropdown) dropdown.style.display = 'none';
+                        const overlay = document.getElementById('notification-overlay');
+                        if (overlay) overlay.style.display = 'none';
+                    }
+                });
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function (event) {
+            const dropdown = document.getElementById('notification-dropdown');
+            const wrapper = document.querySelector('.notification-wrapper');
+            if (dropdown && dropdown.style.display === 'block' && !wrapper.contains(event.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 
