@@ -110,7 +110,7 @@
         // Build data arrays
         const chartData = {
             labels: [{% for h in history | reverse %}"{{ h.date.strftime('%d/%m') }}"{% if not loop.last %}, {% endif %} {% endfor %}],
-        prices: [{% for h in history | reverse %}{ { h.price } } {% if not loop.last %}, {% endif %} {% endfor %}]
+            prices: [{% for h in history | reverse %}{{ h.price }}{% if not loop.last %}, {% endif %}{% endfor %}]
     };
 
     console.log('Chart data:', chartData);
