@@ -135,16 +135,26 @@
 <div class="card mt-3">
     <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
         <h3 class="card-title">Evolucion de Precios (Ultimos 30 dias)</h3>
-        <select id="assetFilter" class="form-control"
-            style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.875rem;">
-            <option value="all">Ver Todos</option>
-            {% for stock in stocks %}
-            <option value="{{ stock.symbol }}">{{ stock.symbol }}</option>
-            {% endfor %}
-        </select>
+        <div class="flex gap-1">
+            <button class="btn btn-sm btn-ghost" onclick="selectAllStocks()">Ver Todos</button>
+            <button class="btn btn-sm btn-ghost" onclick="clearAllStocks()">Limpiar</button>
+        </div>
     </div>
     <div class="card-body">
-        <canvas id="priceChart" height="300"></canvas>
+        <div id="stockToggles" style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem;">
+            {% for stock in stocks %}
+            <button class="stock-toggle-btn" data-symbol="{{ stock.symbol }}"
+                onclick="toggleStock('{{ stock.symbol }}')">
+                {{ stock.symbol }}
+            </button>
+            {% endfor %}
+        </div>
+        <div style="position: relative; height: 300px;">
+            <div id="chartPlaceholder" style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-secondary, #6b7280); font-size: 0.9rem;">
+                Selecciona activos arriba para ver la evolucion de precios
+            </div>
+            <canvas id="priceChart" style="display: none;"></canvas>
+        </div>
     </div>
 </div>
 
@@ -183,6 +193,33 @@
 </div>
 {% endblock %}
 
+{% block extra_css %}
+<style>
+    .stock-toggle-btn {
+        padding: 0.25rem 0.65rem;
+        font-size: 0.8rem;
+        font-weight: 500;
+        border: 1.5px solid var(--border-color, #e5e7eb);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--text-secondary, #6b7280);
+        cursor: pointer;
+        transition: all 0.15s ease;
+        line-height: 1.4;
+    }
+    .stock-toggle-btn:hover {
+        border-color: #3b82f6;
+        color: #3b82f6;
+        background: rgba(59, 130, 246, 0.06);
+    }
+    .stock-toggle-btn.active {
+        background: #3b82f6;
+        border-color: #3b82f6;
+        color: #fff;
+    }
+</style>
+{% endblock %}
+
 {% block extra_js %}
 <script>
     function testIOLConnection() {
@@ -207,83 +244,101 @@
     {% if stocks %}
     let priceChartInstance = null;
     let allPriceData = null;
+    let selectedSymbols = new Set();
+    const CHART_COLORS = [
+        '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+        '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#14b8a6',
+        '#a855f7', '#eab308', '#0ea5e9', '#22c55e', '#f43f5e'
+    ];
+    let symbolColorMap = {};
 
     fetch('/api/stocks/price-history')
         .then(response => response.json())
         .then(data => {
             allPriceData = data;
-            const ctx = document.getElementById('priceChart').getContext('2d');
-
-            if (Object.keys(data).length === 0) {
-                ctx.canvas.parentElement.innerHTML = '<p class="text-muted text-center">Sin datos de historial aun. Actualiza los precios para generar el grafico.</p>';
-                return;
-            }
-
-            renderChart('all');
-        });
-
-    function renderChart(filterSymbol) {
-        const ctx = document.getElementById('priceChart').getContext('2d');
-
-        // Destroy existing chart if it exists
-        if (priceChartInstance) {
-            priceChartInstance.destroy();
-        }
-
-        let datasets = [];
-        let labels = [];
-
-        if (filterSymbol === 'all') {
-            // Create datasets for all symbols
-            datasets = Object.keys(allPriceData).map((symbol, idx) => {
-                const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
-                return {
-                    label: symbol,
-                    data: allPriceData[symbol].map(p => p.price),
-                    borderColor: colors[idx % colors.length],
-                    backgroundColor: 'transparent',
-                    tension: 0.3
-                };
+            Object.keys(data).forEach((symbol, idx) => {
+                symbolColorMap[symbol] = CHART_COLORS[idx % CHART_COLORS.length];
             });
-            // Get labels from first dataset (assuming date consistency)
-            const firstSymbol = Object.keys(allPriceData)[0];
-            labels = allPriceData[firstSymbol].map(p => p.date);
-
-        } else if (allPriceData[filterSymbol]) {
-            // Create dataset for single symbol
-            datasets = [{
-                label: filterSymbol,
-                data: allPriceData[filterSymbol].map(p => p.price),
-                borderColor: '#3b82f6',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                fill: true,
-                tension: 0.3
-            }];
-            labels = allPriceData[filterSymbol].map(p => p.date);
-        }
-
-        priceChartInstance = new Chart(ctx, {
-            type: 'line',
-            data: { labels, datasets },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: false }
-                },
-                plugins: {
-                    legend: { position: 'top' }
-                }
-            }
         });
+
+    function toggleStock(symbol) {
+        if (selectedSymbols.has(symbol)) {
+            selectedSymbols.delete(symbol);
+        } else {
+            selectedSymbols.add(symbol);
+        }
+        document.querySelectorAll('.stock-toggle-btn').forEach(btn => {
+            btn.classList.toggle('active', selectedSymbols.has(btn.dataset.symbol));
+        });
+        updateChart();
     }
 
-    // Listener for dropdown change
-    document.getElementById('assetFilter').addEventListener('change', function (e) {
-        if (allPriceData) {
-            renderChart(e.target.value);
+    function selectAllStocks() {
+        if (!allPriceData) return;
+        Object.keys(allPriceData).forEach(s => selectedSymbols.add(s));
+        document.querySelectorAll('.stock-toggle-btn').forEach(btn => btn.classList.add('active'));
+        updateChart();
+    }
+
+    function clearAllStocks() {
+        selectedSymbols.clear();
+        document.querySelectorAll('.stock-toggle-btn').forEach(btn => btn.classList.remove('active'));
+        updateChart();
+    }
+
+    function updateChart() {
+        const canvas = document.getElementById('priceChart');
+        const placeholder = document.getElementById('chartPlaceholder');
+
+        if (selectedSymbols.size === 0 || !allPriceData) {
+            canvas.style.display = 'none';
+            placeholder.style.display = 'flex';
+            if (priceChartInstance) {
+                priceChartInstance.destroy();
+                priceChartInstance = null;
+            }
+            return;
         }
-    });
+
+        canvas.style.display = 'block';
+        placeholder.style.display = 'none';
+
+        const isSingle = selectedSymbols.size === 1;
+        const firstSymbol = [...selectedSymbols][0];
+        if (!allPriceData[firstSymbol]) return;
+        const labels = allPriceData[firstSymbol].map(p => p.date);
+
+        const datasets = [...selectedSymbols]
+            .filter(s => allPriceData[s])
+            .map(symbol => ({
+                label: symbol,
+                data: allPriceData[symbol].map(p => p.price),
+                borderColor: symbolColorMap[symbol],
+                backgroundColor: isSingle ? symbolColorMap[symbol].replace(')', ', 0.1)').replace('rgb', 'rgba') : 'transparent',
+                fill: isSingle,
+                tension: 0.3,
+                pointRadius: 2,
+                borderWidth: 2
+            }));
+
+        if (priceChartInstance) {
+            priceChartInstance.data.labels = labels;
+            priceChartInstance.data.datasets = datasets;
+            priceChartInstance.update();
+        } else {
+            const ctx = canvas.getContext('2d');
+            priceChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: false } },
+                    plugins: { legend: { position: 'top' } }
+                }
+            });
+        }
+    }
     {% endif %}
 </script>
 {% endblock %}
