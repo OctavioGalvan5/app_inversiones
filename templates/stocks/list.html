@@ -9,19 +9,16 @@
         <h2>Listado de Activos</h2>
         <p class="text-secondary">Cotizaciones en tiempo real desde IOL</p>
     </div>
-    <div class="flex gap-2">
-        <!-- IOL Update Button -->
-        <form method="POST" action="{{ url_for('stocks_update_from_iol') }}" style="display: inline;">
-            <button type="submit" class="btn btn-primary" id="update-iol-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2">
-                    <polyline points="23,4 23,10 17,10"></polyline>
-                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                </svg>
-                Actualizar Precios
-            </button>
-        </form>
-    </div>
+    <form method="POST" action="{{ url_for('stocks_update_from_iol') }}">
+        <button type="submit" class="btn btn-primary" id="update-iol-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
+                <polyline points="23,4 23,10 17,10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+            Actualizar Precios
+        </button>
+    </form>
 </div>
 
 <!-- Add New Bond Form -->
@@ -77,11 +74,11 @@
         <thead>
             <tr>
                 <th>Simbolo</th>
-                <th>Nombre</th>
-                <th>Tipo</th>
-                <th>Mercado</th>
+                <th class="hide-mobile">Nombre</th>
+                <th class="hide-mobile">Tipo</th>
+                <th class="hide-tablet">Mercado</th>
                 <th>Precio Actual</th>
-                <th>Ultima Actualizacion</th>
+                <th class="hide-tablet">Ultima Actualizacion</th>
                 <th>Acciones</th>
             </tr>
         </thead>
@@ -89,14 +86,14 @@
             {% for stock in stocks %}
             <tr>
                 <td><strong>{{ stock.symbol }}</strong></td>
-                <td>{{ stock.name or '-' }}</td>
-                <td>
+                <td class="hide-mobile">{{ stock.name or '-' }}</td>
+                <td class="hide-mobile">
                     <span
                         class="badge badge-{% if stock.stock_type == 'accion' %}info{% elif stock.stock_type == 'bono' %}warning{% else %}primary{% endif %}">
                         {{ stock.stock_type|title }}
                     </span>
                 </td>
-                <td>{{ stock.market }}</td>
+                <td class="hide-tablet">{{ stock.market }}</td>
                 <td>
                     {% if stock.current_price %}
                     <strong class="text-success">{{ stock.currency }} {{ "{:,.2f}".format(stock.current_price)
@@ -105,7 +102,7 @@
                     <span class="text-muted">Sin precio</span>
                     {% endif %}
                 </td>
-                <td>
+                <td class="hide-tablet">
                     {% if stock.last_updated %}
                     <span class="text-secondary">{{ stock.last_updated.strftime('%d/%m/%Y %H:%M') }}</span>
                     {% else %}
