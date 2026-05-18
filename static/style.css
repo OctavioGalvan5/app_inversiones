@@ -148,8 +148,10 @@ h4 {
     position: fixed;
     height: 100vh;
     overflow-y: auto;
+    overflow-x: hidden;
     z-index: 1000;
     box-shadow: var(--shadow-xl);
+    transition: width 0.25s ease;
 }
 
 .sidebar-header {
@@ -158,6 +160,81 @@ h4 {
     display: flex;
     align-items: center;
     gap: 1rem;
+    position: relative;
+}
+
+/* Sidebar collapse toggle */
+.sidebar-toggle {
+    margin-left: auto;
+    background: rgba(255,255,255,0.15);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.2s;
+}
+.sidebar-toggle:hover { background: rgba(255,255,255,0.25); }
+
+/* Collapsed state */
+.sidebar.collapsed {
+    width: 64px;
+}
+.sidebar.collapsed .sidebar-info,
+.sidebar.collapsed .nav-section,
+.sidebar.collapsed .nav-text {
+    display: none;
+}
+.sidebar.collapsed .sidebar-header {
+    justify-content: center;
+    padding: 1.25rem 0.75rem;
+}
+.sidebar.collapsed .sidebar-logo {
+    margin: 0;
+}
+.sidebar.collapsed .sidebar-toggle {
+    display: none;
+}
+.sidebar.collapsed .nav-link {
+    justify-content: center;
+    padding: 0.75rem;
+}
+.sidebar.collapsed .nav-link svg {
+    margin: 0;
+}
+
+/* Toggle button shown on collapsed sidebar bottom */
+.sidebar-toggle-bottom {
+    display: none;
+    width: 100%;
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: white;
+    padding: 0.75rem;
+    cursor: pointer;
+    justify-content: center;
+    align-items: center;
+    transition: background 0.2s;
+}
+.sidebar.collapsed .sidebar-toggle-bottom {
+    display: flex;
+}
+.sidebar-toggle-bottom:hover { background: rgba(255,255,255,0.2); }
+
+/* Main content transition */
+.main-content {
+    flex: 1;
+    margin-left: var(--sidebar-width);
+    min-height: 100vh;
+    transition: margin-left 0.25s ease;
+}
+.main-content.expanded {
+    margin-left: 64px;
 }
 
 .sidebar-logo {
@@ -225,12 +302,6 @@ h4 {
     flex-shrink: 0;
 }
 
-/* Main Content */
-.main-content {
-    flex: 1;
-    margin-left: var(--sidebar-width);
-    min-height: 100vh;
-}
 
 /* Header */
 .header {
