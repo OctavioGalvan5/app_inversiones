@@ -272,12 +272,12 @@
                 <thead>
                     <tr>
                         <th>Símbolo</th>
-                        <th>Nombre</th>
-                        <th>Tipo</th>
+                        <th class="hide-mobile">Nombre</th>
+                        <th class="hide-mobile">Tipo</th>
                         <th>Cantidad</th>
-                        <th>P. Prom. Compra</th>
+                        <th class="hide-tablet">P. Prom. Compra</th>
                         <th>P. Actual</th>
-                        <th>Valor</th>
+                        <th class="hide-tablet">Valor</th>
                         <th>Ganancia/Pérdida</th>
                         <th style="width: 100px;">Acciones</th>
                     </tr>
@@ -286,15 +286,15 @@
                     {% for ps in portfolio.stocks.all() %}
                     <tr>
                         <td><strong>{{ ps.stock.symbol }}</strong></td>
-                        <td>{{ ps.stock.name or '-' }}</td>
-                        <td>
+                        <td class="hide-mobile">{{ ps.stock.name or '-' }}</td>
+                        <td class="hide-mobile">
                             <span
                                 class="badge badge-{% if ps.stock.stock_type == 'accion' %}info{% elif ps.stock.stock_type == 'bono' %}warning{% else %}primary{% endif %}">
                                 {{ ps.stock.stock_type|title }}
                             </span>
                         </td>
                         <td>{{ "{:,.2f}".format(ps.quantity) }}</td>
-                        <td>${{ "{:,.2f}".format(ps.purchase_price) }}</td>
+                        <td class="hide-tablet">${{ "{:,.2f}".format(ps.purchase_price) }}</td>
                         <td>
                             {% if ps.stock.current_price %}
                             ${{ "{:,.2f}".format(ps.stock.current_price) }}
@@ -302,7 +302,7 @@
                             <span class="text-muted">Sin precio</span>
                             {% endif %}
                         </td>
-                        <td><strong>${{ "{:,.0f}".format(ps.current_value) }}</strong></td>
+                        <td class="hide-tablet"><strong>${{ "{:,.0f}".format(ps.current_value) }}</strong></td>
                         <td>
                             {% if ps.stock.current_price %}
                             {% if ps.gain_loss >= 0 %}
