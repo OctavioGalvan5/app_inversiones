@@ -511,6 +511,7 @@ h4 {
 
 .stat-content {
     flex: 1;
+    min-width: 0;
 }
 
 .stat-label {
@@ -524,7 +525,7 @@ h4 {
     font-weight: 700;
     color: var(--text-primary);
     line-height: 1.2;
-    white-space: nowrap;
+    word-break: break-word;
 }
 
 .stat-change {

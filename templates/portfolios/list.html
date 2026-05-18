@@ -38,7 +38,7 @@
             <div class="stat-card mt-3" style="padding: 1rem;">
                 <div class="stat-content">
                     <div class="stat-label">Valor Total Cartera</div>
-                    <div class="stat-value" style="font-size: 1.25rem;">${{ "{:,.0f}".format(portfolio.total_value) }}
+                    <div class="stat-value" style="font-size: 1.25rem;">${{ "{:,.0f}".format(portfolio.total_value).replace(',', '.') }}
                     </div>
                 </div>
             </div>

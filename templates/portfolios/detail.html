@@ -25,7 +25,7 @@
         </div>
         <div class="stat-content">
             <div class="stat-label">Valor Total</div>
-            <div class="stat-value">${{ "{:,.0f}".format(portfolio.total_value) }}</div>
+            <div class="stat-value">${{ "{:,.0f}".format(portfolio.total_value).replace(',', '.') }}</div>
         </div>
     </div>
 
@@ -81,7 +81,7 @@
         <div class="stat-content">
             <div class="stat-label">Efectivo en {{ portfolio.broker.name }}</div>
             <div class="stat-value" style="color: {{ 'var(--success-color)' if portfolio.broker.cash_balance >= 0 else 'var(--danger-color)' }};">
-                ${{ "{:,.0f}".format(portfolio.broker.cash_balance) }}
+                ${{ "{:,.0f}".format(portfolio.broker.cash_balance).replace(',', '.') }}
             </div>
         </div>
     </div>
@@ -638,7 +638,7 @@
 
                 // Initial investment
                 document.getElementById('initial-investment').textContent =
-                    '$' + m.initial_investment.toLocaleString('es-AR', { minimumFractionDigits: 0 });
+                    '$' + m.initial_investment.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
                 // Gain/Loss
                 const gainLossEl = document.getElementById('gain-loss');
@@ -646,12 +646,12 @@
                 const statGainLoss = document.getElementById('stat-gainloss');
 
                 if (m.gain_loss >= 0) {
-                    gainLossEl.textContent = '+$' + m.gain_loss.toLocaleString('es-AR', { minimumFractionDigits: 0 });
+                    gainLossEl.textContent = '+$' + m.gain_loss.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
                     gainLossEl.className = 'stat-value text-success';
                     gainLossPctEl.innerHTML = '<span class="text-success">+' + m.gain_loss_pct.toFixed(2) + '%</span>';
                     statGainLoss.classList.add('success');
                 } else {
-                    gainLossEl.textContent = '-$' + Math.abs(m.gain_loss).toLocaleString('es-AR', { minimumFractionDigits: 0 });
+                    gainLossEl.textContent = '-$' + Math.abs(m.gain_loss).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
                     gainLossEl.className = 'stat-value text-danger';
                     gainLossPctEl.innerHTML = '<span class="text-danger">' + m.gain_loss_pct.toFixed(2) + '%</span>';
                     statGainLoss.classList.add('danger');
