@@ -71,16 +71,16 @@
         </div>
     </div>
 
-    <div class="stat-card" style="border-left: 4px solid #10b981;">
-        <div class="stat-icon" style="background: #d1fae5;">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
+    <div class="stat-card success">
+        <div class="stat-icon success">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="2" y="5" width="20" height="14" rx="2"></rect>
                 <line x1="2" y1="10" x2="22" y2="10"></line>
             </svg>
         </div>
         <div class="stat-content">
             <div class="stat-label">Efectivo en {{ portfolio.broker.name }}</div>
-            <div class="stat-value" style="color: {{ '#10b981' if portfolio.broker.cash_balance >= 0 else '#ef4444' }};">
+            <div class="stat-value" style="color: {{ 'var(--success-color)' if portfolio.broker.cash_balance >= 0 else 'var(--danger-color)' }};">
                 ${{ "{:,.0f}".format(portfolio.broker.cash_balance) }}
             </div>
         </div>
