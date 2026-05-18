@@ -6,7 +6,8 @@
       "Bash(git commit -m 'fix: ejecutar init_db al iniciar en produccion \\(Gunicorn/Docker\\) *)",
       "Bash(git commit -m 'fix: uniformizar botones de acciones en tabla de cartera *)",
       "Bash(git commit -m 'fix: corregir estilo de tarjeta de efectivo para que use clases CSS del sistema *)",
-      "Bash(git commit -m 'feat: sidebar colapsable con persistencia en localStorage *)"
+      "Bash(git commit -m 'feat: sidebar colapsable con persistencia en localStorage *)",
+      "PowerShell(Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force)"
     ]
   }
 }
