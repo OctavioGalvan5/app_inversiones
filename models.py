@@ -51,7 +51,8 @@ class Broker(db.Model):
     ratings = db.relationship('BrokerRating', backref='broker', lazy='dynamic')
     portfolios = db.relationship('Portfolio', backref='broker', lazy='dynamic')
     messages = db.relationship('Message', backref='broker', lazy='dynamic', foreign_keys='Message.broker_id')
-    cash_transactions = db.relationship('CashTransaction', backref='broker', lazy='dynamic')
+    cash_transactions = db.relationship('CashTransaction', backref='broker', lazy='dynamic',
+                                        foreign_keys='CashTransaction.broker_id')
     
     # Rating categories
     RATING_CATEGORIES = [
