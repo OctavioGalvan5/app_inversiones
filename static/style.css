@@ -1336,8 +1336,8 @@ select.form-control {
     }
 
     .stats-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
     }
 
     .grid-2,
@@ -1447,6 +1447,12 @@ select.form-control {
     /* Ocultar columnas menos importantes en móvil */
     .table .hide-mobile {
         display: none;
+    }
+
+    /* Botones de acción en tabla: más chicos en mobile */
+    .table-action-btn {
+        width: 28px !important;
+        height: 28px !important;
     }
 
     /* Notification dropdown — no overflow en pantallas angostas */
@@ -1639,10 +1645,7 @@ select.form-control {
         width: auto !important;
     }
 
-    /* Stat cards: 2 por fila en teléfonos para no ocupar toda la pantalla */
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
+    /* Stat cards: 2 columnas — sigue igual que en 768px */
 
     .stats-grid {
         gap: 0.75rem;
