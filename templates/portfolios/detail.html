@@ -321,33 +321,32 @@
                             {% endif %}
                         </td>
                         <td>
-                            <div style="display: flex; gap: 0.25rem;">
-                                <button type="button" class="btn btn-sm btn-secondary"
+                            <div style="display: flex; gap: 0.35rem; align-items: center;">
+                                {% set btn = "width:32px;height:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;border:none;cursor:pointer;" %}
+                                <button type="button"
+                                    style="{{ btn }}background:#e2e8f0;color:#475569;"
                                     onclick="openEditModal({{ ps.id }}, '{{ ps.stock.symbol }}', {{ ps.quantity }}, {{ ps.purchase_price }})"
                                     title="Editar">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                     </svg>
                                 </button>
-                                <button type="button" class="btn btn-sm"
-                                    style="background: #10b981; color: white;"
+                                <button type="button"
+                                    style="{{ btn }}background:#10b981;color:white;"
                                     onclick="openSellModal({{ ps.id }}, '{{ ps.stock.symbol }}', {{ ps.quantity }}, {{ ps.stock.current_price or 0 }})"
                                     title="Vender">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <line x1="12" y1="1" x2="12" y2="23"></line>
                                         <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                                     </svg>
                                 </button>
                                 {% if other_portfolios %}
-                                <button type="button" class="btn btn-sm"
-                                    style="background: #f59e0b; color: white;"
+                                <button type="button"
+                                    style="{{ btn }}background:#f59e0b;color:white;"
                                     onclick="openTransferModal({{ ps.id }}, '{{ ps.stock.symbol }}', {{ ps.quantity }})"
                                     title="Transferir a otro broker">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <polyline points="17 1 21 5 17 9"></polyline>
                                         <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
                                         <polyline points="7 23 3 19 7 15"></polyline>
@@ -358,14 +357,13 @@
                                 <form method="POST"
                                     action="{{ url_for('portfolio_remove_stock', portfolio_id=portfolio.id, ps_id=ps.id) }}"
                                     onsubmit="return confirm('¿Eliminar {{ ps.stock.symbol }} de la cartera?');"
-                                    style="display: inline;">
-                                    <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    style="display:inline;margin:0;">
+                                    <button type="submit"
+                                        style="{{ btn }}background:#ef4444;color:white;"
+                                        title="Eliminar">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <polyline points="3 6 5 6 21 6"></polyline>
-                                            <path
-                                                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
-                                            </path>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                                         </svg>
                                     </button>
                                 </form>
