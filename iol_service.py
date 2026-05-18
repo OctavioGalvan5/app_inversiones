@@ -5,7 +5,9 @@ Handles authentication and price fetching for Argentine stocks and bonds
 """
 
 import os
+import threading
 import requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
@@ -20,6 +22,7 @@ class IOLService:
         self.access_token = None
         self.refresh_token = None
         self.token_expiry = None
+        self._auth_lock = threading.Lock()
     
     def authenticate(self):
         """Authenticate with IOL API and get bearer token"""
@@ -77,13 +80,12 @@ class IOLService:
     
     def ensure_authenticated(self):
         """Ensure we have a valid access token"""
-        if not self.access_token or not self.token_expiry:
-            return self.authenticate()
-        
-        if datetime.now() >= self.token_expiry:
-            return self.refresh_access_token()
-        
-        return True
+        with self._auth_lock:
+            if not self.access_token or not self.token_expiry:
+                return self.authenticate()
+            if datetime.now() >= self.token_expiry:
+                return self.refresh_access_token()
+            return True
     
     def get_headers(self):
         """Get headers with authorization"""
@@ -135,20 +137,28 @@ class IOLService:
     
     def get_multiple_prices(self, symbols):
         """
-        Get prices for multiple symbols
-        
+        Get prices for multiple symbols in parallel
+
         Args:
             symbols: List of ticker symbols
-            
+
         Returns:
             dict mapping symbol to price info
         """
         results = {}
-        
-        for symbol in symbols:
-            price_data = self.get_bond_price(symbol.upper())
-            results[symbol] = price_data
-        
+
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            future_to_symbol = {
+                executor.submit(self.get_bond_price, s.upper()): s
+                for s in symbols
+            }
+            for future in as_completed(future_to_symbol):
+                symbol = future_to_symbol[future]
+                try:
+                    results[symbol] = future.result()
+                except Exception as e:
+                    results[symbol] = {'symbol': symbol, 'price': None, 'error': str(e)}
+
         return results
 
 

@@ -2,6 +2,7 @@ from flask import Flask, render_template, redirect, url_for, flash, request, jso
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_apscheduler import APScheduler
 from config import Config
+from sqlalchemy import func
 from models import db, User, Broker, BrokerRating, Investment, Portfolio, Stock, PortfolioStock, PriceHistory, Message, ActivityLog
 from datetime import datetime, date
 from report_service import log_activity, get_activities, get_messages, generate_activities_pdf, generate_activities_excel, generate_messages_pdf, generate_messages_excel, to_buenos_aires, format_datetime_ar
@@ -103,12 +104,22 @@ def index():
     return redirect(url_for('login'))
 
 
+_notification_cache = {}  # {user_id: (count, timestamp)}
+_NOTIFICATION_TTL = 60   # segundos
+
 @app.context_processor
 def inject_notifications():
     if current_user.is_authenticated:
-        # Count messages created after last_notification_read_at
+        uid = current_user.id
+        now = datetime.utcnow()
+        cached = _notification_cache.get(uid)
+        if cached:
+            count, ts = cached
+            if (now - ts).total_seconds() < _NOTIFICATION_TTL:
+                return dict(unread_notifications_count=count)
         last_read = current_user.last_notification_read_at or datetime.min
         unread_count = Message.query.filter(Message.created_at > last_read).count()
+        _notification_cache[uid] = (unread_count, now)
         return dict(unread_notifications_count=unread_count)
     return dict(unread_notifications_count=0)
 
@@ -118,6 +129,7 @@ def inject_notifications():
 def mark_notifications_read():
     current_user.last_notification_read_at = datetime.utcnow()
     db.session.commit()
+    _notification_cache.pop(current_user.id, None)
     return jsonify({'status': 'success'})
 
 
@@ -220,32 +232,35 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    # Get statistics
-    total_investments = Investment.query.filter_by(status='active').count()
-    total_brokers = Broker.query.count()
-    
-    # Calculate total invested
+    # Una sola query para todas las inversiones activas
     investments = Investment.query.filter_by(status='active').all()
+    total_investments = len(investments)
+    total_brokers = Broker.query.count()
+
     total_invested_ars = sum(i.amount for i in investments if i.currency == 'ARS')
     total_invested_usd = sum(i.amount for i in investments if i.currency == 'USD')
-    
-    # Calculate expected returns from plazo fijo
     plazo_fijo_return = sum(i.calculated_return for i in investments if i.investment_type == 'plazo_fijo')
-    
-    # Get recent messages
+
     recent_messages = Message.query.order_by(Message.created_at.desc()).limit(10).all()
-    
-    # Get upcoming maturities (next 30 days)
+
     upcoming = Investment.query.filter(
         Investment.status == 'active',
         Investment.end_date != None,
         Investment.end_date >= date.today()
     ).order_by(Investment.end_date).limit(5).all()
-    
-    # Get top rated brokers
-    top_brokers = Broker.query.all()
-    top_brokers = sorted(top_brokers, key=lambda x: x.average_rating, reverse=True)[:5]
-    
+
+    # Top 5 brokers ordenados por promedio de rating en SQL (evita N+1 queries)
+    avg_subq = (db.session.query(
+        BrokerRating.broker_id,
+        func.avg(BrokerRating.rating).label('avg_rating')
+    ).group_by(BrokerRating.broker_id).subquery())
+
+    top_brokers = (db.session.query(Broker)
+        .outerjoin(avg_subq, Broker.id == avg_subq.c.broker_id)
+        .order_by(func.coalesce(avg_subq.c.avg_rating, 0).desc())
+        .limit(5)
+        .all())
+
     return render_template('dashboard.html',
         total_investments=total_investments,
         total_brokers=total_brokers,
@@ -1163,9 +1178,7 @@ if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':  # Avoid double-start in Flask
 
 
 if __name__ == '__main__':
+    import threading
     init_db()
-    
-    # Run initial price update
-    update_prices_from_iol()
-    
+    threading.Thread(target=update_prices_from_iol, daemon=True).start()
     app.run(debug=True, port=5000, use_reloader=False)
