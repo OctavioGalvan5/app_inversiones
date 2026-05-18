@@ -1371,6 +1371,7 @@ def init_db():
 # This runs when the module is imported
 import os
 if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':  # Avoid double-start in Flask debug mode
+    init_db()
     scheduler.start()
     print("[SCHEDULER] Iniciado - Precios se actualizaran cada 30 minutos")
 
