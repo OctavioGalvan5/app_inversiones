@@ -210,7 +210,7 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="purchase_price">Precio de Compra *</label>
+                        <label class="form-label" for="purchase_price">Precio Promedio de Compra *</label>
                         <input type="number" step="0.01" min="0" class="form-control" id="purchase_price"
                             name="purchase_price" placeholder="1500.00" required>
                     </div>
@@ -260,7 +260,7 @@
                         <th>Nombre</th>
                         <th>Tipo</th>
                         <th>Cantidad</th>
-                        <th>P. Compra</th>
+                        <th>P. Prom. Compra</th>
                         <th>P. Actual</th>
                         <th>Valor</th>
                         <th>Ganancia/Pérdida</th>
@@ -316,6 +316,20 @@
                                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                     </svg>
                                 </button>
+                                {% if other_portfolios %}
+                                <button type="button" class="btn btn-sm"
+                                    style="background: #f59e0b; color: white;"
+                                    onclick="openTransferModal({{ ps.id }}, '{{ ps.stock.symbol }}', {{ ps.quantity }})"
+                                    title="Transferir a otro broker">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="17 1 21 5 17 9"></polyline>
+                                        <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                                        <polyline points="7 23 3 19 7 15"></polyline>
+                                        <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                                    </svg>
+                                </button>
+                                {% endif %}
                                 <form method="POST"
                                     action="{{ url_for('portfolio_remove_stock', portfolio_id=portfolio.id, ps_id=ps.id) }}"
                                     onsubmit="return confirm('¿Eliminar {{ ps.stock.symbol }} de la cartera?');"
@@ -396,6 +410,41 @@
 
 {{ render_message_scripts() }}
 
+<!-- Transfer Stock Modal -->
+<div id="transferStockModal" class="modal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="modal-content"
+        style="background: #ffffff; max-width: 420px; width: 90%; margin: 0 auto; padding: 1.5rem; border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); position: relative; top: 50%; transform: translateY(-50%);">
+        <h3 style="margin-bottom: 1rem; color: #1a365d;">&#x21C4; Transferir <span id="transferStockSymbol" style="color: #f59e0b;"></span></h3>
+        <form id="transferStockForm" method="POST">
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label"
+                    style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Cartera destino</label>
+                <select name="target_portfolio_id" class="form-control" required
+                    style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem;">
+                    {% for p in other_portfolios %}
+                    <option value="{{ p.id }}">{{ p.broker.name }} — {{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label"
+                    style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Cantidad a transferir</label>
+                <input type="number" step="0.01" min="0.01" class="form-control" name="transfer_quantity"
+                    id="transferQuantity" required
+                    style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem;">
+                <small id="transferMaxHint" style="color: #6b7280; font-size: 0.8rem;"></small>
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary"
+                    style="flex: 1; padding: 0.75rem; background: #f59e0b; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Transferir</button>
+                <button type="button" onclick="closeTransferModal()"
+                    style="flex: 1; padding: 0.75rem; background: #e5e7eb; color: #374151; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Edit Stock Modal -->
 <div id="editStockModal" class="modal"
     style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center;">
@@ -412,8 +461,7 @@
             </div>
             <div class="form-group" style="margin-bottom: 1rem;">
                 <label class="form-label"
-                    style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Precio de
-                    Compra</label>
+                    style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Precio Promedio de Compra</label>
                 <input type="number" step="0.01" min="0" class="form-control" name="purchase_price"
                     id="editPurchasePrice" required
                     style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem;">
@@ -448,6 +496,24 @@
     // Close modal when clicking outside
     document.getElementById('editStockModal').addEventListener('click', function (e) {
         if (e.target === this) closeEditModal();
+    });
+
+    // Transfer modal functions
+    function openTransferModal(psId, symbol, maxQuantity) {
+        document.getElementById('transferStockSymbol').textContent = symbol;
+        document.getElementById('transferQuantity').value = maxQuantity;
+        document.getElementById('transferQuantity').max = maxQuantity;
+        document.getElementById('transferMaxHint').textContent = 'Máximo: ' + maxQuantity;
+        document.getElementById('transferStockForm').action = '/portfolios/{{ portfolio.id }}/stocks/' + psId + '/transfer';
+        document.getElementById('transferStockModal').style.display = 'flex';
+    }
+
+    function closeTransferModal() {
+        document.getElementById('transferStockModal').style.display = 'none';
+    }
+
+    document.getElementById('transferStockModal').addEventListener('click', function (e) {
+        if (e.target === this) closeTransferModal();
     });
 
     // Stock selection handler for add asset form

@@ -543,7 +543,8 @@ def portfolio_detail(portfolio_id):
     portfolio = Portfolio.query.get_or_404(portfolio_id)
     stocks = Stock.query.order_by(Stock.symbol).all()
     messages = Message.query.filter_by(portfolio_id=portfolio_id, parent_id=None).order_by(Message.created_at.desc()).all()
-    return render_template('portfolios/detail.html', portfolio=portfolio, stocks=stocks, messages=messages)
+    other_portfolios = Portfolio.query.filter(Portfolio.id != portfolio_id).order_by(Portfolio.name).all()
+    return render_template('portfolios/detail.html', portfolio=portfolio, stocks=stocks, messages=messages, other_portfolios=other_portfolios)
 
 
 @app.route('/portfolios/<int:portfolio_id>/add-stock', methods=['POST'])
@@ -579,19 +580,28 @@ def portfolio_add_stock(portfolio_id):
             db.session.add(stock)
             db.session.commit()
     
-    # Add to portfolio
-    portfolio_stock = PortfolioStock(
-        portfolio_id=portfolio_id,
-        stock_id=stock.id,
-        quantity=quantity,
-        purchase_price=purchase_price,
-        purchase_date=date.today()
-    )
-    db.session.add(portfolio_stock)
-    db.session.commit()
-    log_activity(current_user.id, 'create', 'portfolio_stock', portfolio_stock.id, f'{stock.symbol} en {portfolio.name}', {'quantity': quantity, 'price': purchase_price})
-    
-    flash(f'{stock.symbol} agregado a la cartera', 'success')
+    # Si el activo ya existe en la cartera, calcular precio promedio ponderado
+    existing = PortfolioStock.query.filter_by(portfolio_id=portfolio_id, stock_id=stock.id).first()
+    if existing:
+        total_quantity = existing.quantity + quantity
+        avg_price = (existing.quantity * existing.purchase_price + quantity * purchase_price) / total_quantity
+        existing.quantity = total_quantity
+        existing.purchase_price = round(avg_price, 4)
+        db.session.commit()
+        log_activity(current_user.id, 'update', 'portfolio_stock', existing.id, f'{stock.symbol} en {portfolio.name}', {'quantity': total_quantity, 'avg_price': existing.purchase_price})
+        flash(f'{stock.symbol} actualizado con precio promedio ${existing.purchase_price:.2f}', 'success')
+    else:
+        portfolio_stock = PortfolioStock(
+            portfolio_id=portfolio_id,
+            stock_id=stock.id,
+            quantity=quantity,
+            purchase_price=purchase_price,
+            purchase_date=date.today()
+        )
+        db.session.add(portfolio_stock)
+        db.session.commit()
+        log_activity(current_user.id, 'create', 'portfolio_stock', portfolio_stock.id, f'{stock.symbol} en {portfolio.name}', {'quantity': quantity, 'price': purchase_price})
+        flash(f'{stock.symbol} agregado a la cartera', 'success')
     return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
 
 
@@ -639,6 +649,59 @@ def portfolio_remove_stock(portfolio_id, ps_id):
     log_activity(current_user.id, 'delete', 'portfolio_stock', ps_id, symbol)
     
     flash(f'{symbol} eliminado de la cartera', 'success')
+    return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
+
+
+@app.route('/portfolios/<int:portfolio_id>/stocks/<int:ps_id>/transfer', methods=['POST'])
+@login_required
+def portfolio_transfer_stock(portfolio_id, ps_id):
+    ps = PortfolioStock.query.get_or_404(ps_id)
+
+    if ps.portfolio_id != portfolio_id:
+        flash('Operación no permitida', 'error')
+        return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
+
+    target_portfolio_id = int(request.form.get('target_portfolio_id'))
+    transfer_quantity = float(request.form.get('transfer_quantity', ps.quantity))
+
+    if target_portfolio_id == portfolio_id:
+        flash('La cartera destino debe ser diferente a la actual', 'error')
+        return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
+
+    if transfer_quantity <= 0 or transfer_quantity > ps.quantity:
+        flash('Cantidad inválida para transferir', 'error')
+        return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
+
+    target_portfolio = Portfolio.query.get_or_404(target_portfolio_id)
+    symbol = ps.stock.symbol
+
+    target_ps = PortfolioStock.query.filter_by(portfolio_id=target_portfolio_id, stock_id=ps.stock_id).first()
+    if target_ps:
+        total_qty = target_ps.quantity + transfer_quantity
+        avg_price = (target_ps.quantity * target_ps.purchase_price + transfer_quantity * ps.purchase_price) / total_qty
+        target_ps.quantity = total_qty
+        target_ps.purchase_price = round(avg_price, 4)
+    else:
+        new_ps = PortfolioStock(
+            portfolio_id=target_portfolio_id,
+            stock_id=ps.stock_id,
+            quantity=transfer_quantity,
+            purchase_price=ps.purchase_price,
+            purchase_date=date.today()
+        )
+        db.session.add(new_ps)
+
+    if transfer_quantity >= ps.quantity:
+        db.session.delete(ps)
+    else:
+        ps.quantity = round(ps.quantity - transfer_quantity, 4)
+
+    db.session.commit()
+    log_activity(current_user.id, 'update', 'portfolio_stock', ps_id,
+                 f'{symbol} transferido a {target_portfolio.name}',
+                 {'quantity': transfer_quantity, 'from_portfolio': portfolio_id, 'to_portfolio': target_portfolio_id})
+
+    flash(f'{transfer_quantity:g} {symbol} transferido a {target_portfolio.name} ({target_portfolio.broker.name})', 'success')
     return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
 
 
