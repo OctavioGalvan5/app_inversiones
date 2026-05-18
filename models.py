@@ -45,10 +45,13 @@ class Broker(db.Model):
     commission_rate = db.Column(db.Float, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    cash_balance = db.Column(db.Float, default=0.0, nullable=False)
+
     # Relationships
     ratings = db.relationship('BrokerRating', backref='broker', lazy='dynamic')
     portfolios = db.relationship('Portfolio', backref='broker', lazy='dynamic')
     messages = db.relationship('Message', backref='broker', lazy='dynamic', foreign_keys='Message.broker_id')
+    cash_transactions = db.relationship('CashTransaction', backref='broker', lazy='dynamic')
     
     # Rating categories
     RATING_CATEGORIES = [
@@ -223,6 +226,43 @@ class PortfolioStock(db.Model):
         if cost == 0:
             return 0
         return ((self.current_value - cost) / cost) * 100
+
+
+class CashTransaction(db.Model):
+    __tablename__ = 'cash_transactions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    broker_id = db.Column(db.Integer, db.ForeignKey('brokers.id'), nullable=False)
+    # tipos: deposito, retiro, venta, compra, transferencia_entrada, transferencia_salida
+    type = db.Column(db.String(30), nullable=False)
+    amount = db.Column(db.Float, nullable=False)  # siempre positivo
+    description = db.Column(db.String(200))
+    stock_symbol = db.Column(db.String(20))       # opcional, para ventas/compras
+    portfolio_id = db.Column(db.Integer, db.ForeignKey('portfolios.id'))
+    related_broker_id = db.Column(db.Integer, db.ForeignKey('brokers.id'))  # para transferencias
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    TYPES_LABEL = {
+        'deposito': 'Depósito',
+        'retiro': 'Retiro',
+        'venta': 'Venta',
+        'compra': 'Compra',
+        'transferencia_entrada': 'Transferencia recibida',
+        'transferencia_salida': 'Transferencia enviada',
+    }
+
+    # Tipos que suman al saldo
+    CREDIT_TYPES = {'deposito', 'venta', 'transferencia_entrada'}
+    # Tipos que restan al saldo
+    DEBIT_TYPES = {'retiro', 'compra', 'transferencia_salida'}
+
+    @property
+    def label(self):
+        return self.TYPES_LABEL.get(self.type, self.type)
+
+    @property
+    def is_credit(self):
+        return self.type in self.CREDIT_TYPES
 
 
 class PriceHistory(db.Model):

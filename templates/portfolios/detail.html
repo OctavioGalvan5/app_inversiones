@@ -70,6 +70,21 @@
             <div class="stat-hint" id="gain-loss-pct"></div>
         </div>
     </div>
+
+    <div class="stat-card" style="border-left: 4px solid #10b981;">
+        <div class="stat-icon" style="background: #d1fae5;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
+                <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                <line x1="2" y1="10" x2="22" y2="10"></line>
+            </svg>
+        </div>
+        <div class="stat-content">
+            <div class="stat-label">Efectivo en {{ portfolio.broker.name }}</div>
+            <div class="stat-value" style="color: {{ '#10b981' if portfolio.broker.cash_balance >= 0 else '#ef4444' }};">
+                ${{ "{:,.0f}".format(portfolio.broker.cash_balance) }}
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Performance Chart -->
@@ -316,6 +331,16 @@
                                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                     </svg>
                                 </button>
+                                <button type="button" class="btn btn-sm"
+                                    style="background: #10b981; color: white;"
+                                    onclick="openSellModal({{ ps.id }}, '{{ ps.stock.symbol }}', {{ ps.quantity }}, {{ ps.stock.current_price or 0 }})"
+                                    title="Vender">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                                    </svg>
+                                </button>
                                 {% if other_portfolios %}
                                 <button type="button" class="btn btn-sm"
                                     style="background: #f59e0b; color: white;"
@@ -410,6 +435,41 @@
 
 {{ render_message_scripts() }}
 
+<!-- Sell Stock Modal -->
+<div id="sellStockModal" class="modal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="modal-content"
+        style="background: #ffffff; max-width: 420px; width: 90%; margin: 0 auto; padding: 1.5rem; border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); position: relative; top: 50%; transform: translateY(-50%);">
+        <h3 style="margin-bottom: 0.25rem; color: #1a365d;">Vender <span id="sellStockSymbol" style="color: #10b981;"></span></h3>
+        <p style="color: #6b7280; font-size: 0.85rem; margin-bottom: 1rem;">El importe se acreditará en el saldo de <strong>{{ portfolio.broker.name }}</strong></p>
+        <form id="sellStockForm" method="POST">
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Cantidad a vender</label>
+                <input type="number" step="0.01" min="0.01" class="form-control" name="sell_quantity"
+                    id="sellQuantity" required
+                    style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem;">
+                <small id="sellMaxHint" style="color: #6b7280; font-size: 0.8rem;"></small>
+            </div>
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Precio de venta por unidad</label>
+                <input type="number" step="0.01" min="0.01" class="form-control" name="sell_price"
+                    id="sellPrice" required
+                    style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem;">
+            </div>
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem;">
+                <span style="color: #166534; font-size: 0.9rem;">Total estimado: </span>
+                <strong id="sellTotal" style="color: #15803d; font-size: 1rem;">$0</strong>
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                <button type="submit" class="btn btn-primary"
+                    style="flex: 1; padding: 0.75rem; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Confirmar venta</button>
+                <button type="button" onclick="closeSellModal()"
+                    style="flex: 1; padding: 0.75rem; background: #e5e7eb; color: #374151; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Transfer Stock Modal -->
 <div id="transferStockModal" class="modal"
     style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center;">
@@ -496,6 +556,36 @@
     // Close modal when clicking outside
     document.getElementById('editStockModal').addEventListener('click', function (e) {
         if (e.target === this) closeEditModal();
+    });
+
+    // Sell modal functions
+    function openSellModal(psId, symbol, maxQuantity, currentPrice) {
+        document.getElementById('sellStockSymbol').textContent = symbol;
+        document.getElementById('sellQuantity').value = maxQuantity;
+        document.getElementById('sellQuantity').max = maxQuantity;
+        document.getElementById('sellMaxHint').textContent = 'Máximo: ' + maxQuantity;
+        document.getElementById('sellPrice').value = currentPrice > 0 ? currentPrice : '';
+        document.getElementById('sellStockForm').action = '/portfolios/{{ portfolio.id }}/stocks/' + psId + '/sell';
+        updateSellTotal();
+        document.getElementById('sellStockModal').style.display = 'flex';
+    }
+
+    function closeSellModal() {
+        document.getElementById('sellStockModal').style.display = 'none';
+    }
+
+    function updateSellTotal() {
+        const qty = parseFloat(document.getElementById('sellQuantity').value) || 0;
+        const price = parseFloat(document.getElementById('sellPrice').value) || 0;
+        const total = qty * price;
+        document.getElementById('sellTotal').textContent = '$' + total.toLocaleString('es-AR', {maximumFractionDigits: 0});
+    }
+
+    document.getElementById('sellQuantity').addEventListener('input', updateSellTotal);
+    document.getElementById('sellPrice').addEventListener('input', updateSellTotal);
+
+    document.getElementById('sellStockModal').addEventListener('click', function(e) {
+        if (e.target === this) closeSellModal();
     });
 
     // Transfer modal functions

@@ -3,7 +3,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from flask_apscheduler import APScheduler
 from config import Config
 from sqlalchemy import func
-from models import db, User, Broker, BrokerRating, Investment, Portfolio, Stock, PortfolioStock, PriceHistory, Message, ActivityLog
+from models import db, User, Broker, BrokerRating, Investment, Portfolio, Stock, PortfolioStock, PriceHistory, Message, ActivityLog, CashTransaction
 from datetime import datetime, date
 from report_service import log_activity, get_activities, get_messages, generate_activities_pdf, generate_activities_excel, generate_messages_pdf, generate_messages_excel, to_buenos_aires, format_datetime_ar
 
@@ -309,7 +309,10 @@ def broker_detail(broker_id):
     broker = Broker.query.get_or_404(broker_id)
     user_rating = BrokerRating.query.filter_by(broker_id=broker_id, user_id=current_user.id).first()
     messages = Message.query.filter_by(broker_id=broker_id, parent_id=None).order_by(Message.created_at.desc()).all()
-    return render_template('brokers/detail.html', broker=broker, user_rating=user_rating, messages=messages)
+    cash_transactions = CashTransaction.query.filter_by(broker_id=broker_id).order_by(CashTransaction.created_at.desc()).limit(30).all()
+    other_brokers = Broker.query.filter(Broker.id != broker_id).order_by(Broker.name).all()
+    return render_template('brokers/detail.html', broker=broker, user_rating=user_rating, messages=messages,
+                           cash_transactions=cash_transactions, other_brokers=other_brokers)
 
 
 @app.route('/brokers/<int:broker_id>/edit', methods=['GET', 'POST'])
@@ -367,6 +370,75 @@ def broker_rate(broker_id):
     
     db.session.commit()
     flash(f'{ratings_saved} puntuaciones guardadas', 'success')
+    return redirect(url_for('broker_detail', broker_id=broker_id))
+
+
+@app.route('/brokers/<int:broker_id>/cash/deposit', methods=['POST'])
+@login_required
+def broker_cash_deposit(broker_id):
+    broker = Broker.query.get_or_404(broker_id)
+    amount = float(request.form.get('amount', 0))
+    tx_type = request.form.get('tx_type', 'deposito')
+    description = request.form.get('description', '').strip()
+
+    if amount <= 0:
+        flash('El monto debe ser mayor a 0', 'error')
+        return redirect(url_for('broker_detail', broker_id=broker_id))
+
+    if tx_type == 'retiro':
+        broker.cash_balance -= amount
+        label = 'Retiro'
+    else:
+        broker.cash_balance += amount
+        label = 'Depósito'
+
+    db.session.add(CashTransaction(
+        broker_id=broker_id,
+        type=tx_type,
+        amount=amount,
+        description=description or f'{label} manual'
+    ))
+    db.session.commit()
+    flash(f'{label} de ${amount:,.0f} registrado en {broker.name}', 'success')
+    return redirect(url_for('broker_detail', broker_id=broker_id))
+
+
+@app.route('/brokers/<int:broker_id>/cash/transfer', methods=['POST'])
+@login_required
+def broker_cash_transfer(broker_id):
+    source = Broker.query.get_or_404(broker_id)
+    target_id = int(request.form.get('target_broker_id'))
+    amount = float(request.form.get('amount', 0))
+
+    if target_id == broker_id:
+        flash('El broker destino debe ser diferente al origen', 'error')
+        return redirect(url_for('broker_detail', broker_id=broker_id))
+    if amount <= 0:
+        flash('El monto debe ser mayor a 0', 'error')
+        return redirect(url_for('broker_detail', broker_id=broker_id))
+
+    target = Broker.query.get_or_404(target_id)
+    source.cash_balance -= amount
+    target.cash_balance += amount
+
+    db.session.add(CashTransaction(
+        broker_id=broker_id,
+        type='transferencia_salida',
+        amount=amount,
+        description=f'Transferencia a {target.name}',
+        related_broker_id=target_id
+    ))
+    db.session.add(CashTransaction(
+        broker_id=target_id,
+        type='transferencia_entrada',
+        amount=amount,
+        description=f'Transferencia desde {source.name}',
+        related_broker_id=broker_id
+    ))
+    db.session.commit()
+    log_activity(current_user.id, 'update', 'broker', broker_id,
+                 f'Transferencia ${amount:,.0f} a {target.name}')
+    flash(f'${amount:,.0f} transferidos de {source.name} a {target.name}', 'success')
     return redirect(url_for('broker_detail', broker_id=broker_id))
 
 
@@ -587,7 +659,6 @@ def portfolio_add_stock(portfolio_id):
         avg_price = (existing.quantity * existing.purchase_price + quantity * purchase_price) / total_quantity
         existing.quantity = total_quantity
         existing.purchase_price = round(avg_price, 4)
-        db.session.commit()
         log_activity(current_user.id, 'update', 'portfolio_stock', existing.id, f'{stock.symbol} en {portfolio.name}', {'quantity': total_quantity, 'avg_price': existing.purchase_price})
         flash(f'{stock.symbol} actualizado con precio promedio ${existing.purchase_price:.2f}', 'success')
     else:
@@ -599,9 +670,22 @@ def portfolio_add_stock(portfolio_id):
             purchase_date=date.today()
         )
         db.session.add(portfolio_stock)
-        db.session.commit()
-        log_activity(current_user.id, 'create', 'portfolio_stock', portfolio_stock.id, f'{stock.symbol} en {portfolio.name}', {'quantity': quantity, 'price': purchase_price})
+        log_activity(current_user.id, 'create', 'portfolio_stock', None, f'{stock.symbol} en {portfolio.name}', {'quantity': quantity, 'price': purchase_price})
         flash(f'{stock.symbol} agregado a la cartera', 'success')
+
+    # Registrar compra y descontar del saldo del broker
+    broker = portfolio.broker
+    total_compra = purchase_price * quantity
+    broker.cash_balance -= total_compra
+    db.session.add(CashTransaction(
+        broker_id=broker.id,
+        type='compra',
+        amount=total_compra,
+        description=f'Compra {quantity:g} {stock.symbol} a ${purchase_price:,.2f}',
+        stock_symbol=stock.symbol,
+        portfolio_id=portfolio_id
+    ))
+    db.session.commit()
     return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
 
 
@@ -649,6 +733,48 @@ def portfolio_remove_stock(portfolio_id, ps_id):
     log_activity(current_user.id, 'delete', 'portfolio_stock', ps_id, symbol)
     
     flash(f'{symbol} eliminado de la cartera', 'success')
+    return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
+
+
+@app.route('/portfolios/<int:portfolio_id>/stocks/<int:ps_id>/sell', methods=['POST'])
+@login_required
+def portfolio_sell_stock(portfolio_id, ps_id):
+    ps = PortfolioStock.query.get_or_404(ps_id)
+    if ps.portfolio_id != portfolio_id:
+        flash('Operación no permitida', 'error')
+        return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
+
+    sell_price = float(request.form.get('sell_price'))
+    sell_quantity = float(request.form.get('sell_quantity', ps.quantity))
+
+    if sell_quantity <= 0 or sell_quantity > ps.quantity:
+        flash('Cantidad inválida para vender', 'error')
+        return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
+
+    symbol = ps.stock.symbol
+    total_proceeds = sell_price * sell_quantity
+    broker = ps.portfolio.broker
+
+    broker.cash_balance += total_proceeds
+    db.session.add(CashTransaction(
+        broker_id=broker.id,
+        type='venta',
+        amount=total_proceeds,
+        description=f'Venta {sell_quantity:g} {symbol} a ${sell_price:,.2f}',
+        stock_symbol=symbol,
+        portfolio_id=portfolio_id
+    ))
+
+    if sell_quantity >= ps.quantity:
+        db.session.delete(ps)
+    else:
+        ps.quantity = round(ps.quantity - sell_quantity, 4)
+
+    db.session.commit()
+    log_activity(current_user.id, 'delete', 'portfolio_stock', ps_id,
+                 f'Venta {sell_quantity:g} {symbol}',
+                 {'sell_price': sell_price, 'quantity': sell_quantity, 'proceeds': total_proceeds})
+    flash(f'Venta de {sell_quantity:g} {symbol} registrada · +${total_proceeds:,.0f} en {broker.name}', 'success')
     return redirect(url_for('portfolio_detail', portfolio_id=portfolio_id))
 
 
@@ -1217,7 +1343,16 @@ def report_executive_pdf():
 def init_db():
     with app.app_context():
         db.create_all()
-        
+
+        # Migracion: agregar cash_balance a brokers si no existe
+        from sqlalchemy import inspect, text
+        inspector = inspect(db.engine)
+        broker_cols = [col['name'] for col in inspector.get_columns('brokers')]
+        if 'cash_balance' not in broker_cols:
+            db.session.execute(text('ALTER TABLE brokers ADD COLUMN cash_balance FLOAT NOT NULL DEFAULT 0'))
+            db.session.commit()
+            print("[INIT_DB] Columna cash_balance agregada a brokers")
+
         # Create admin user if not exists
         if not User.query.filter_by(username='admin').first():
             admin = User(
